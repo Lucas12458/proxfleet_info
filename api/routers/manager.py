@@ -57,10 +57,10 @@ proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
 
 # path to the projet root 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # path to the yaml file
-CONFIG_PATH = BASE_DIR / "proxfleet" / "config.yaml"
+CONFIG_PATH = BASE_DIR / "config.yaml"
 
 
 @router.get("/servers")

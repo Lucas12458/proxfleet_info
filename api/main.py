@@ -4,15 +4,7 @@ from .routers import manager,vms,users
 description = """
 
 
-
-
-
-
 """
-
-
-
-
 app = FastAPI(
     title="ProxfleetAPI",
     description=description,
