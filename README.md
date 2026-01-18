@@ -58,6 +58,12 @@ You can change the host and port using the `--host` and `--port` arguments.
 uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
+### Start the FastAPI development server using Uvicorn
+
+```bash
+uvicorn api.main:app --reload
+```
+This command reloads the server when a file is updated.
 
 
 ## Development Guidelines
