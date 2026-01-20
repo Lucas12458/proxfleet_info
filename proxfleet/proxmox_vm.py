@@ -1,6 +1,6 @@
 import ipaddress
 import logging
-from proxmox_manager import ProxmoxManager
+from proxfleet.proxmox_manager import ProxmoxManager
 
 
 class ProxmoxVM:
