@@ -115,3 +115,28 @@ async def add_pool_and_storage(pool_storage_data:PoolStorageCreate,proxmox_manag
 @router.post("/server/{host}/restore")
 async def restore_backup(backup_data:BackupCreate,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.restore_backup(backup_file=backup_data.file,vmid=backup_data.vmid,path=backup_data.path)
+
+@router.get("/server/{host}/task/status")
+async def get_task_status(upid:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.get_task_status(upid=upid)
+
+@router.get("/server/{host}/task/stopped")
+async def check_task_stopped(upid:str,timeout_sec:int=300,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_task_stopped(upid=upid,timeout_sec=timeout_sec)
+
+@router.get("/server/{host}/bridge")
+async def check_bridge_exists(bridge_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_bridge_exists(bridge_name=bridge_name)
+
+@router.get("/server/{host}/pool")
+async def check_pool_exists(pool_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_pool_exists(pool_name=pool_name)
+
+
+@router.get("/server/{host}/storage")
+async def check_storage_exists(storage_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_storage_exists(storage_name=storage_name)
+
+@router.get("/server/{host}/nextvm")
+async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.get_next_vmid()
