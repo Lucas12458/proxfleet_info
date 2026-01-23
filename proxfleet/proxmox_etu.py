@@ -1,4 +1,4 @@
-from ProxmoxManager import ProxmoxManager
+from proxfleet.proxmox_manager import ProxmoxManager
 
 
 class ProxmoxEtu:

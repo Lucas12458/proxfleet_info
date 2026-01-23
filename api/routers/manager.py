@@ -1,6 +1,6 @@
 from proxfleet.proxmox_manager import *
 
-from fastapi import Depends,APIRouter
+from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 import os
 import dotenv
@@ -46,7 +46,11 @@ class BackupCreate(BaseModel):
     path:str = "/mnt/pve/nas-tri/dump/"
 
 def get_proxmox_manager(host: str) -> ProxmoxManager:
-    return ProxmoxManager(f"{host}.usmb-tri.fr",proxmox_user,proxmox_pass)
+    try:
+        return ProxmoxManager(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass)
+    except Exception as e:
+        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
+        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
 
 
 
