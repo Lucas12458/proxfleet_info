@@ -1,6 +1,6 @@
 from proxfleet.proxmox_manager import *
 
-from fastapi import Depends,APIRouter
+from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 import os
 import dotenv
@@ -46,7 +46,11 @@ class BackupCreate(BaseModel):
     path:str = "/mnt/pve/nas-tri/dump/"
 
 def get_proxmox_manager(host: str) -> ProxmoxManager:
-    return ProxmoxManager(f"{host}.usmb-tri.fr",proxmox_user,proxmox_pass)
+    try:
+        return ProxmoxManager(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass)
+    except Exception as e:
+        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
+        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
 
 
 
@@ -115,3 +119,28 @@ async def add_pool_and_storage(pool_storage_data:PoolStorageCreate,proxmox_manag
 @router.post("/server/{host}/restore")
 async def restore_backup(backup_data:BackupCreate,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.restore_backup(backup_file=backup_data.file,vmid=backup_data.vmid,path=backup_data.path)
+
+@router.get("/server/{host}/task/status")
+async def get_task_status(upid:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.get_task_status(upid=upid)
+
+@router.get("/server/{host}/task/stopped")
+async def check_task_stopped(upid:str,timeout_sec:int=300,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_task_stopped(upid=upid,timeout_sec=timeout_sec)
+
+@router.get("/server/{host}/bridge")
+async def check_bridge_exists(bridge_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_bridge_exists(bridge_name=bridge_name)
+
+@router.get("/server/{host}/pool")
+async def check_pool_exists(pool_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_pool_exists(pool_name=pool_name)
+
+
+@router.get("/server/{host}/storage")
+async def check_storage_exists(storage_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.check_storage_exists(storage_name=storage_name)
+
+@router.get("/server/{host}/nextvm")
+async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.get_next_vmid()
