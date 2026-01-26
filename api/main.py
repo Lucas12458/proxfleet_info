@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from .routers import manager,vms,users,files
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 description = """
 
@@ -11,6 +13,11 @@ app = FastAPI(
     version="0.0.1",
    
 )
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "front-end"
+
+app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 
 app.include_router(manager.router)

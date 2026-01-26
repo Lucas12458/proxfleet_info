@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tableau JSON</title>
+
+  <!-- React CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel pour JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .table-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 95%;
+      max-width: 1200px;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th {
+      background: #2d6cdf;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    tr:nth-child(even) {
+      background: #f0f4ff;
+    }
+
+    tr:hover {
+      background: #e8f0ff;
+    }
+
+    .name {
+      font-weight: bold;
+      color: #1a3d7c;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+
+    function UsersTable() {
+      const [users, setUsers] = React.useState([]);
+
+      React.useEffect(() => {
+        fetch("http://127.0.0.1:8000/sheet/assignments") // <-- mets ton fichier JSON ici
+          .then(res => res.json())
+          .then(data => setUsers(data.data));
+      }, []);
+
+      return (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Promotion</th>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>UID</th>
+                <th>Server ID</th>
+                <th>Server Name</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {users.map((u, i) => (
+                <tr key={i}>
+                  <td>{u.promotion}</td>
+                  <td className="name">{u.nom}</td>
+                  <td>{u.prenom}</td>
+                  <td>{u.uid}</td>
+                  <td>{u.server_id}</td>
+                  <td>{u.server_name || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<UsersTable />);
+  </script>
+</body>
+</html>
