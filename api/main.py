@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import manager,vms,users
+from .routers import manager,vms,users,files
 
 description = """
 
@@ -16,6 +16,7 @@ app = FastAPI(
 app.include_router(manager.router)
 app.include_router(vms.router)
 app.include_router(users.router)
+app.include_router(files.router)
 
 
 @app.get("/")
