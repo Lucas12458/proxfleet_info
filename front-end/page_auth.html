@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Proxfleet Login</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/app/style_auth.css" />
+
+  <!-- React CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+
+  <script>
+
+    const { useState } = React;
+
+    function Login() {
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [ok, setOk] = useState(false);
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+
+        const res = await fetch("/auth/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+        setOk(true);
+        } else {
+        setError("Login incorrect");
+        }
+    }
+
+    if (ok) {
+        return React.createElement("h2", null, "Bienvenue 🔓");
+    }
+
+    return (
+        React.createElement("form", { onSubmit: handleSubmit },
+        React.createElement("h2", null, "Connexion"),
+        React.createElement("input", {
+            placeholder: "Username",
+            value: username,
+            onChange: e => setUsername(e.target.value)
+        }),
+        React.createElement("input", {
+            type: "password",
+            placeholder: "Password",
+            value: password,
+            onChange: e => setPassword(e.target.value)
+        }),
+        React.createElement("button", null, "Login"),
+        error && React.createElement("p", { className: "error" }, error)
+        )
+    );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root"))
+    .render(React.createElement(Login));
+
+
+  </script>
+</body>
+</html>
