@@ -69,7 +69,7 @@
       const [users, setUsers] = React.useState([]);
 
       React.useEffect(() => {
-        fetch("http://127.0.0.1:8000/sheet/assignments") // <-- mets ton fichier JSON ici
+        fetch("http://127.0.0.1:8000/csv/assignments") // <-- mets ton fichier JSON ici
           .then(res => res.json())
           .then(data => setUsers(data.data));
       }, []);

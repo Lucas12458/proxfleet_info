@@ -7,6 +7,10 @@ import dotenv
 import logging
 from pathlib import Path
 import shutil
+import httpx
+import csv
+import io
+
 
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
@@ -57,3 +61,32 @@ async def read_csv(proxmox_csv:ProxmoxCSV = Depends(get_proxmox_csv)):
    return proxmox_csv.read_csv(delimiter=delimiter)
     
 
+
+@router.get("/csv/assignments")
+async def get_vm_assignments():
+    url = (f"https://docs.google.com/spreadsheets/d/1vht7HaV6jwAwHuT93ZJXDnu7BOzEcsWD/gviz/tq?tqx=out:csv&sheet=Feuille1")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(url)
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Failed to fetch Google Sheet")
+
+    reader = csv.DictReader(io.StringIO(resp.text))
+
+    data = []
+    for row in reader:
+        if any(v and v.strip() for v in row.values()):
+            data.append({
+                "promotion": row["Promotion"],
+                "nom": row["Nom"],
+                "prenom": row["Prenom"],
+                "uid": row["uid"],
+                "server_id": int(row["Serveur"]),
+                "server_name": row["Nom-serveur"],
+            })
+
+    return {
+        "count": len(data),
+        "data": data
+    }
