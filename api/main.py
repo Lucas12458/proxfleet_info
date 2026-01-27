@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import manager,vms,users,files
+from .routers import manager,vms,users,files,auth
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -24,6 +24,7 @@ app.include_router(manager.router)
 app.include_router(vms.router)
 app.include_router(users.router)
 app.include_router(files.router)
+app.include_router(auth.router)
 
 
 @app.get("/")

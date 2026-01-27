@@ -25,23 +25,35 @@
     const [error, setError] = useState("");
     const [ok, setOk] = useState(false);
 
+  
+
     async function handleSubmit(e) {
         e.preventDefault();
+        
+        const body = new URLSearchParams();
+        body.append("username", username);
+        body.append("password", password);
 
-        const res = await fetch("/auth/check", {
+
+        const res = await fetch("/auth/token", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: body.toString()
         });
 
-        const data = await res.json();
-
-        if (data.ok) {
-        setOk(true);
-        } else {
-        setError("Login incorrect");
+        
+        if (!res.ok) {
+            setError("Login incorrect");
+            return;
         }
+
+        const data = await res.json();
+        localStorage.setItem("token", data.access_token);
+        setOk(true);
     }
+    
 
     if (ok) {
         return React.createElement("h2", null, "Bienvenue 🔓");

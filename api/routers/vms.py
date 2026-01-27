@@ -4,8 +4,10 @@ from fastapi import Depends, APIRouter, HTTPException
 from pydantic import BaseModel,Field
 import os
 import dotenv
+import logging
 
 dotenv.load_dotenv()
+logging.basicConfig(level=logging.DEBUG)
 
 def get_proxmox_manager(host: str) -> ProxmoxManager:
     try:
