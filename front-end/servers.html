@@ -64,48 +64,46 @@
   <div id="root"></div>
 
   <script type="text/babel">
+  function UsersTable() {
+    const [users, setUsers] = React.useState([]);
 
-    function UsersTable() {
-      const [users, setUsers] = React.useState([]);
+    React.useEffect(() => {
+      fetch("/servers")   // ✅ better than hardcoding 127.0.0.1
+        .then(res => res.json())
+        .then(data => setUsers(data))
+        .catch(err => console.error(err));
+    }, []);
 
-      React.useEffect(() => {
-        fetch("http://127.0.0.1:8000/sheet/assignments")
-          .then(res => res.json())
-          .then(data => setUsers(data.data));
-      }, []);
-
-      return (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Promotion</th>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>UID</th>
-                <th>Server ID</th>
-                <th>Server Name</th>
+    return (
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>host</th>
+              <th>local</th>
+              <th>usmb-tri</th>
+              <th>sssd_file_path</th>
+              <th>vlan_interface</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u, i) => (
+              <tr key={i}>
+                <td>{u.host}</td>
+                <td className="name">{u.local}</td>
+                <td>{u["usmb-tri"]}</td>
+                <td>{u.sssd_file_path}</td>
+                <td>{u.vlan_interface}</td>
               </tr>
-            </thead>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
-            <tbody>
-              {users.map((u, i) => (
-                <tr key={i}>
-                  <td>{u.promotion}</td>
-                  <td className="name">{u.nom}</td>
-                  <td>{u.prenom}</td>
-                  <td>{u.uid}</td>
-                  <td>{u.server_id}</td>
-                  <td>{u.server_name || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    }
+  ReactDOM.createRoot(document.getElementById("root")).render(<UsersTable />);
+</script>
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<UsersTable />);
-  </script>
 </body>
 </html>

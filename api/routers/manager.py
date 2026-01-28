@@ -2,6 +2,8 @@ from proxfleet.proxmox_manager import *
 
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
 import os
 import dotenv
 import logging
@@ -58,6 +60,7 @@ def get_proxmox_manager(host: str) -> ProxmoxManager:
 
 
 router = APIRouter(tags=["Manager"])
+router = APIRouter(tags=["Spreadsheet"])
 proxmox_user = os.getenv("PROXMOX_USER")
 proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
@@ -69,6 +72,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # path to the yaml file
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
+app = FastAPI()
+@app.get("/front-end")
+def front():
+    return FileResponse("front-end/index.html")
 
 @router.get("/servers")
 async def get_servers():
@@ -149,7 +156,6 @@ async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_man
     return proxmox_manager.get_next_vmid()
 
 
-router = APIRouter(tags=["Spreadsheet"])
 
 @router.get("/sheet/assignments")
 async def get_vm_assignments():
