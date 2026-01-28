@@ -38,7 +38,7 @@ class ProxmoxCSV:
 
         if os.path.exists(self.csv_path):
             logging.error(f"Cannot create CSV {self.csv_path}: file already exists")
-            return False
+            raise FileExistsError("File already exists")
 
         try:
             with open(self.csv_path, "w", newline="", encoding="utf-8-sig") as f:
@@ -47,7 +47,7 @@ class ProxmoxCSV:
             return True
         except Exception as e:
             logging.error(f"Failed to create CSV {self.csv_path}: {e}")
-            return False
+            raise RuntimeError("CSV creation failed")
 
     def delete_csv(self) -> bool:
         """
@@ -58,7 +58,7 @@ class ProxmoxCSV:
 
         if not os.path.exists(self.csv_path):
             logging.error(f"Cannot delete CSV {self.csv_path}: file does not exist")
-            return False
+            raise FileNotFoundError
 
         try:
             os.remove(self.csv_path)
@@ -66,7 +66,7 @@ class ProxmoxCSV:
             return True
         except Exception as e:
             logging.error(f"Failed to delete CSV {self.csv_path}: {e}")
-            return False
+            raise RuntimeError("CSV deletion failed")
 
     def copy_csv(self, new_name: str | None = None):
         """
@@ -88,7 +88,7 @@ class ProxmoxCSV:
             return output_csv
         except Exception as e:
             logging.error(f"Failed to copy CSV {self.csv_path}: {e}")
-            return None
+            raise RuntimeError("CSV copy failed")
 
     def count_rows(self, delimiter: str = ";"):
         """
@@ -116,9 +116,11 @@ class ProxmoxCSV:
                 reader = csv.reader(f, delimiter=delimiter)
                 header = next(reader)
                 return header
+        except FileNotFoundError:
+            raise
         except Exception as e:
             logging.error(f"Failed to read header from {self.csv_path}: {e}")
-            return []
+            raise RuntimeError("Unable to read headers")
 
     def read_csv(self, delimiter: str = ";"):
         """
@@ -132,9 +134,11 @@ class ProxmoxCSV:
                 rows = list(reader)
                 logging.debug(f"Read {len(rows)} rows from {self.csv_path}")
                 return rows
+        except FileNotFoundError:
+            raise
         except Exception as e:
             logging.error(f"Failed to read CSV {self.csv_path}: {e}")
-            return []
+            raise RuntimeError("Unable to read CSV")
 
     def write_csv(self, rows: list[dict], fieldnames: list[str], delimiter: str = ";") -> bool:
         """

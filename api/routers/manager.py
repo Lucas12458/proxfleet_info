@@ -1,7 +1,9 @@
 from proxfleet.proxmox_manager import *
-
+from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
 import os
 import dotenv
 import logging
@@ -55,6 +57,7 @@ def get_proxmox_manager(host: str) -> ProxmoxManager:
 
 
 router = APIRouter(tags=["Manager"])
+router = APIRouter(tags=["Spreadsheet"])
 proxmox_user = os.getenv("PROXMOX_USER")
 proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
@@ -66,6 +69,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # path to the yaml file
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
+app = FastAPI()
+@app.get("/front-end")
+def front():
+    return FileResponse("front-end/index.html")
 
 @router.get("/servers")
 async def get_servers():
@@ -77,7 +84,7 @@ async def get_servers():
     return servers
     
 @router.get("/server/{host}/pools")
-async def get_pools(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_pools(user=Depends(auth.get_current_user),proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.list_pools()
 
 @router.get("/server/{host}/interfaces")
@@ -144,3 +151,34 @@ async def check_storage_exists(storage_name:str,proxmox_manager:ProxmoxManager =
 @router.get("/server/{host}/nextvm")
 async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.get_next_vmid()
+
+
+
+@router.get("/sheet/assignments")
+async def get_vm_assignments():
+    url = (f"https://docs.google.com/spreadsheets/d/1vht7HaV6jwAwHuT93ZJXDnu7BOzEcsWD/gviz/tq?tqx=out:csv&sheet=Feuille1")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(url)
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Failed to fetch Google Sheet")
+
+    reader = csv.DictReader(io.StringIO(resp.text))
+
+    data = []
+    for row in reader:
+        if any(v and v.strip() for v in row.values()):
+            data.append({
+                "promotion": row["Promotion"],
+                "nom": row["Nom"],
+                "prenom": row["Prenom"],
+                "uid": row["uid"],
+                "server_id": int(row["Serveur"]),
+                "server_name": row["Nom-serveur"],
+            })
+
+    return {
+        "count": len(data),
+        "data": data
+    }
