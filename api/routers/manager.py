@@ -1,5 +1,5 @@
 from proxfleet.proxmox_manager import *
-
+from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI
@@ -9,9 +9,6 @@ import dotenv
 import logging
 import yaml
 from pathlib import Path
-import httpx
-import csv
-import io
 
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
@@ -87,7 +84,7 @@ async def get_servers():
     return servers
     
 @router.get("/server/{host}/pools")
-async def get_pools(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_pools(user=Depends(auth.get_current_user),proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.list_pools()
 
 @router.get("/server/{host}/interfaces")

@@ -69,12 +69,14 @@
       const [users, setUsers] = React.useState([]);
 
       React.useEffect(() => {
-        fetch("http://127.0.0.1:8000/sheet/assignments")
+        fetch("http://127.0.0.1:8000/csv/assignments") // <-- mets ton fichier JSON ici
           .then(res => res.json())
           .then(data => setUsers(data.data));
       }, []);
 
       return (
+        <div>
+        <a href="page_auth.html">Page auth</a>
         <div className="table-wrap">
           <table>
             <thead>
@@ -101,6 +103,7 @@
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       );
     }
