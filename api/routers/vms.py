@@ -1,5 +1,7 @@
-from proxfleet.proxmox_manager import *
+from proxfleet.proxmox_manager import ProxmoxManager
 from proxfleet.proxmox_vm import ProxmoxVM
+from proxfleet.proxmox_authentication import ProxmoxAuth
+from api.routers import auth
 from fastapi import Depends, APIRouter, HTTPException
 from pydantic import BaseModel,Field
 import os
@@ -9,24 +11,72 @@ import logging
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
-def get_proxmox_manager(host: str) -> ProxmoxManager:
-    try:
-        return ProxmoxManager(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass)
-    except Exception as e:
-        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
-        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
+admin_user = os.getenv("PROXMOX_USER")
+admin_pass = os.getenv("PROXMOX_PASSWORD")
 
-def get_proxmox_vm(host: str, vmid: int) -> ProxmoxVM:
+
+def get_token_for_host(host: str, session: dict) -> dict:
+    server = session["servers"].get(host)
+    if not server:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    full_tokenid = server.get("full-tokenid")  
+    token_value = server.get("value")
+
+    if not full_tokenid or not token_value:
+        raise HTTPException(status_code=502, detail=f"Invalid token data for host {host}")
+
     try:
-        return ProxmoxVM(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass, vmid)
+        user, token_name = full_tokenid.split("!", 1)
+    except ValueError:
+        raise HTTPException(status_code=502, detail=f"Invalid token format for host {host}")
+
+    return {
+        "user": user,
+        "token_name": token_name,
+        "token_value": token_value
+    }
+
+
+def get_proxmox_auth(host:str,session=Depends(auth.get_current_session)) -> ProxmoxAuth:
+    if host not in session["servers"]:
+        raise HTTPException(status_code=403,detail="Forbidden")
+    try:
+        token_data = session["servers"].get(host)
+        if not token_data:
+            raise HTTPException(status_code=403, detail=f"No token for host {host}")
+
+        token_id = token_data.get("token_id")
+        token_secret = token_data.get("token_secret")
+        if not token_id or not token_secret:
+            raise HTTPException(status_code=502, detail=f"Invalid token data for host {host}")
+
+        return ProxmoxAuth(proxmox_host=f"{host}.usmb-tri.fr",admin_user=admin_user,admin_password=admin_pass,target_user=session["user"])
+    
     except Exception as e:
-        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
-        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
+        logging.error(e)
+        raise  HTTPException(status_code=502,detail=f"Unable to connect to host {host}")
+
+
+def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
+    logging.debug(session)
+    token = get_token_for_host(host, session)
+    user = session["user"]
+    
+    return ProxmoxManager(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True, token_name=token["token_name"],token_value=token["token_value"])
+
+   
+
+def get_proxmox_vm(host: str, vmid: int, session=Depends(auth.get_current_session)) -> ProxmoxVM:
+    token = get_token_for_host(host, session)
+    user = session["user"]
+    return ProxmoxVM(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True,token_name=token["token_name"],token_value=token["token_value"],vmid=vmid)
+    
+
 
 router = APIRouter(tags=["Vms"])
 
-proxmox_user = os.getenv("PROXMOX_USER")
-proxmox_pass = os.getenv("PROXMOX_PASSWORD")
+
 
 class VMAction(BaseModel):
     action: str  # start, stop, shutdown, reboot, delete
