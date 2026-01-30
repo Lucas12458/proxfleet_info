@@ -11,19 +11,28 @@ This project relies on the Proxfleet project:
 
 
 
-## Project Description
+## API Access
+
+Once the server is running:
+
+- **API base URL**:  
+  `http://<host>:<port>/`
+
+- **Interactive API documentation (Swagger UI)**:  
+  `http://<host>:<port>/docs`
 
 
-### Virtual environment
+## Installation & Setup
 
-In proxfleet_info directory
+### 1. Create a virtual environment
+From the `proxfleet_info` directory:
 ```bash
 python -m venv venv
 ```
-
+### 2. Activate the virtual environment
 Windows (PowerShell)
 ```powershell
-.\venv\scripts\activate.ps1
+.\venv\Scripts\activate.ps1
 ```
 
 Linux / macOS
@@ -31,24 +40,27 @@ Linux / macOS
 source venv/bin/activate
 ```
 
-Librairies for the projet
+
+### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-## How to use
+## Configuration
 
-### Environment Variables Authentication
+### Environment Variables (Proxmox authentication)
 
-Create a `.env` file:
+Create a `.env` file in the project root :
 
-**For Password:**
+**Use your credentials from the Proxmox servers:**
 ```bash
 export PROXMOX_USER=root@pam
 export PROXMOX_PASSWORD=myPassword123
 ```
 
-### Start the FastAPI server using Uvicorn
+## Running the API
+
+### Production-like run
 
 ```bash
 uvicorn api.main:app
@@ -58,12 +70,12 @@ You can change the host and port using the `--host` and `--port` arguments.
 uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Start the FastAPI development server using Uvicorn
+### Development mode (auto-reload)
 
 ```bash
 uvicorn api.main:app --reload
 ```
-This command reloads the server when a file is updated.
+This command reloads the API server when a file is updated.
 
 
 ## Development Guidelines
