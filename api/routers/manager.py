@@ -1,5 +1,4 @@
 from proxfleet.proxmox_manager import *
-from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI
@@ -57,7 +56,6 @@ def get_proxmox_manager(host: str) -> ProxmoxManager:
 
 
 router = APIRouter(tags=["Manager"])
-router = APIRouter(tags=["Spreadsheet"])
 proxmox_user = os.getenv("PROXMOX_USER")
 proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
@@ -84,7 +82,7 @@ async def get_servers():
     return servers
     
 @router.get("/server/{host}/pools")
-async def get_pools(user=Depends(auth.get_current_user),proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_pools(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.list_pools()
 
 @router.get("/server/{host}/interfaces")
@@ -151,5 +149,3 @@ async def check_storage_exists(storage_name:str,proxmox_manager:ProxmoxManager =
 @router.get("/server/{host}/nextvm")
 async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.get_next_vmid()
-
-

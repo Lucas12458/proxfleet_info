@@ -1,41 +1,25 @@
-from datetime import datetime, timedelta, timezone
-from fastapi import Depends, APIRouter, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from typing import Annotated
-from jwt.exceptions import InvalidTokenError
-from pydantic import BaseModel
-import os
-from dotenv import load_dotenv
-import logging
-import jwt
-import yaml
-from pathlib import Path
-from proxmoxer import ProxmoxAPI
+from fastapi import Depends, APIRouter, HTTPException,Response,Cookie
+from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
+from fastapi.security import APIKeyCookie
+from proxmoxer import ProxmoxAPI
+from proxfleet.proxmox_authentication import *
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from pathlib import Path
+import logging
 import asyncio
-
+import os
+import uuid
+import time
 
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
-
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-class User(BaseModel):
-    login: str
-    servers: list[str]
-    disabled: bool | None = None
-
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    realm: str
+    hosts: list[str]
 
 # path to the projet root 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -43,80 +27,111 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # path to the yaml file
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
+admin_user = os.getenv("PROXMOX_USER")
+admin_pass = os.getenv("PROXMOX_PASSWORD")
+
+SESSIONS = {}
+SESSION_EXPIRE_SECONDS = 3600
+
 
 router = APIRouter(tags=["Authentification"])
 
+api_cookie = APIKeyCookie(name="session_cookie")
 
-def check_server(host, username, password):
-    ProxmoxAPI(host=host, user=username, password=password, verify_ssl=True)
-    return host
 
-async def authenticate_user(username: str, password: str) -> User | None:
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+def get_current_session(session_cookie: str = Depends(api_cookie)):
+    if not session_cookie:
+        raise HTTPException(status_code=401,detail="Not authenticated")
 
-    servers = config.get("servers", [])
-    tasks = []
+    session = SESSIONS.get(session_cookie)
+    if not session:
+        raise HTTPException(status_code=401,detail="Not authenticated")
 
-    for s in servers:
-        host = s.get("usmb-tri")
-        if host:
-            tasks.append(
-                run_in_threadpool(check_server, host, username, password)
-            )
+    if session["expires_at"] < time.time():
+        del SESSIONS[session_cookie]
+        raise HTTPException(status_code=401, detail="Session expired")
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    return session
 
-    allowed = []
-    for s, r in zip(servers, results):
-        if not isinstance(r, Exception):
-            allowed.append(s["host"])
 
-    if not allowed:
+async def check_server_and_create_token(host: str, username: str,password: str) -> dict[str, dict] | None:
+    
+    host_url = f"{host}.usmb-tri.fr"
+    try:
+        await run_in_threadpool(ProxmoxAPI,host=host_url,user=username,password=password,verify_ssl=True)
+        
+        proxmox_auth = ProxmoxAuth(proxmox_host=host_url,admin_user=admin_user,admin_password=admin_pass,target_user=username)
+        
+        token_data = await run_in_threadpool(proxmox_auth.create_token,privsep=0,ttl_seconds=3600)
+        
+        return {host: token_data}
+
+    except Exception as e:
+        logging.warning(f"Server {host} inaccessible for user {username}: {e}")
         return None
 
-    return User(login=username, servers=allowed, disabled=False)
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)]) -> User:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return User(login=payload["sub"],servers=payload["servers"],disabled=False)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-
 @router.post("/auth/token")
-async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
-) -> Token:
+async def login_for_access_token(data: LoginRequest):
+    user = f"{data.username}@{data.realm}"
+    password = data.password
+    hosts_list = data.hosts
 
-    user = await authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    tasks = [check_server_and_create_token(host, user, password) for host in hosts_list]
+    results = await asyncio.gather(*tasks)
 
-    access_token = create_access_token(
-        data={
-            "sub": user.login,
-            "servers": user.servers
-        },
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    server_tokens: dict[str, dict] = {}
+    for result in results:
+        if result:
+            for host, token_data in result.items():
+                server_tokens[host] = token_data
+
+    if not server_tokens:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+
+    
+    session_id = str(uuid.uuid4())
+    SESSIONS[session_id] = {
+        "user": user,
+        "servers": server_tokens,
+        "expires_at": time.time() + SESSION_EXPIRE_SECONDS
+    }
+
+   
+    response = JSONResponse({
+        "message": "Logged in",
+        "servers": list(server_tokens.keys())
+    })
+    response.set_cookie(
+        key="session_cookie",
+        value=session_id,
+        max_age=SESSION_EXPIRE_SECONDS,
+        httponly=True,  
+        secure=False    
     )
+    return response
 
-    return Token(access_token=access_token, token_type="bearer")
+
+@router.post("/auth/logout")
+async def logout(response: Response, session_id: str | None = Cookie(default=None)):
+    if session_id:
+        SESSIONS.pop(session_id, None)
+
+    response.delete_cookie("session_id")
+    return {"ok": True}
+
+
+
+
+       
+
+       
+
+    
+
+    
+
+
+
+
+
+    
