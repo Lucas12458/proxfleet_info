@@ -66,6 +66,22 @@ def get_proxmox_vm(host: str, vmid: int, session=Depends(auth.get_current_sessio
     user = session["user"]
     return ProxmoxVM(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True,token_name=token["token_name"],token_value=token["token_value"],vmid=vmid)
     
+def get_proxmox_vm_for_clone(host: str,vm_data: CloneVMRequest,session=Depends(auth.get_current_session)) -> ProxmoxVM:
+    token = get_token_for_host(host, session)
+    user = session["user"]
+
+    vm = ProxmoxVM(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True,token_name=token["token_name"],token_value=token["token_value"])
+
+    vm.newid = vm_data.newid
+    vm.name_vm = vm_data.name
+    vm.template_vm = vm_data.template
+    vm.pool_vm = vm_data.pool
+    vm.storage_vm = vm_data.storage
+
+    return vm
+
+
+
 
 
 router = APIRouter(tags=["Vms"])
@@ -120,11 +136,14 @@ async def get_vm_network(vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_
     return {"interfaces": proxmox_vm.get_network_interfaces(), "management_ip": proxmox_vm.management_ip()}
 
 @router.post("/server/{host}/vm/clone")
-async def clone_vm(host:str,vm_data : CloneVMRequest,proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
-    proxmox_vm = ProxmoxVM(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=proxmox_user,proxmox_password=proxmox_pass)
-    proxmox_vm.newid = vm_data.newid or proxmox_manager.get_next_vmid()
-    proxmox_vm.name_vm = vm_data.name
-    proxmox_vm.template_vm = vm_data.template
-    proxmox_vm.pool_vm = vm_data.pool
-    proxmox_vm.storage_vm = vm_data.storage
+async def clone_vm(
+    host: str,
+    vm_data: CloneVMRequest,
+    proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for_clone),
+    proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)
+):
+    
+    if proxmox_vm.newid is None:
+        proxmox_vm.newid = proxmox_manager.get_next_vmid()
+
     return proxmox_vm.clone_vm()
