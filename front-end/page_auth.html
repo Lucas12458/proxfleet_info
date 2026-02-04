@@ -16,64 +16,82 @@
 
 
   <script>
-
     const { useState } = React;
-
-    function Login() {
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-    const [ok, setOk] = useState(false);
-
-  
-
-   async function handleSubmit(e) {
-        e.preventDefault();
-
-        const res = await fetch("/auth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-        });
-
-        const data = await res.json();
-
-        if (data.ok) {
-        setOk(true);
-        } else {
-        setError("Login incorrect");
-        }
-    }
     
+    function Login() {
+      const [username, setUsername] = useState("");
+      const [password, setPassword] = useState("");
+      const [server, setServer] = useState("pm-serv16");  // valeur par défaut
+      const [error, setError] = useState("");
+      const [ok, setOk] = useState(false);
+    
+      async function handleSubmit(e) {
+        e.preventDefault();
+    
+        const res = await fetch("/auth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username,
+            password,
+            realm: "pam",
+            hosts: [server]
+          })
+        });
+    
+        const data = await res.json();
+        console.log(data);
+        if (data.message === "Logged in") {
+            setOk(true);
+        } else {
+            setError("Login incorrect");
+        }
 
-    if (ok) {
+      }
+    
+      if (ok) {
         return React.createElement("h2", null, "Bienvenue 🔓");
-    }
-
-    return (
+      }
+    
+      return (
         React.createElement("form", { onSubmit: handleSubmit },
-        React.createElement("h2", null, "Connexion"),
-        React.createElement("input", {
+          React.createElement("h2", null, "Connexion"),
+    
+          React.createElement("input", {
             placeholder: "Username",
             value: username,
             onChange: e => setUsername(e.target.value)
-        }),
-        React.createElement("input", {
+          }),
+    
+          React.createElement("input", {
             type: "password",
             placeholder: "Password",
             value: password,
             onChange: e => setPassword(e.target.value)
-        }),
-        React.createElement("button", null, "Login"),
-        error && React.createElement("p", { className: "error" }, error)
+          }),
+    
+          // SELECT SERVEUR
+          React.createElement("select", {
+            value: server,
+            onChange: e => setServer(e.target.value)
+          },
+            React.createElement("option", { value: "pm-serv16" }, "Serveur 16"),
+            React.createElement("option", { value: "pm-serv17" }, "Serveur 17"),
+            React.createElement("option", { value: "pm-serv18" }, "Serveur 18"),
+            React.createElement("option", { value: "pm-serv19" }, "Serveur 19"),
+            React.createElement("option", { value: "pm-serv20" }, "Serveur 20"),
+            React.createElement("option", { value: "pm-serv21" }, "Serveur 21")
+          ),
+    
+          React.createElement("button", null, "Login"),
+          error && React.createElement("p", { className: "error" }, error)
         )
-    );
+      );
     }
-
+    
     ReactDOM.createRoot(document.getElementById("root"))
-    .render(React.createElement(Login));
-
-
-  </script>
+      .render(React.createElement(Login));
+    </script>
+    
 </body>
 </html>
