@@ -1,7 +1,6 @@
-from proxfleet.proxmox_csv import *
-
-from fastapi import Depends,APIRouter,HTTPException,File,UploadFile
-from pydantic import BaseModel,Field
+from proxfleet.proxmox_csv import ProxmoxCSV
+from fastapi import Depends,APIRouter,HTTPException,UploadFile
+from pydantic import BaseModel
 import os
 import dotenv
 import logging
@@ -17,8 +16,6 @@ class CSVWrite(BaseModel):
     field_names : list[str]
     
 
-
-dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
 UPLOAD_DIR = Path("/tmp/uploads")
@@ -36,8 +33,6 @@ def get_proxmox_csv(csv_path: str) -> ProxmoxCSV:
     
         
 router = APIRouter(tags=["CSV"])
-proxmox_user = os.getenv("PROXMOX_USER")
-proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
 @router.post("/csv/upload",status_code=201)
 async def create_upload_csv(csv: UploadFile):

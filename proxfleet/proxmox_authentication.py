@@ -32,9 +32,12 @@ class ProxmoxAuth:
             
         tokenid = f"proxfleet-{uuid.uuid4().hex[:12]}"
         expire = int(time.time()) + ttl_seconds
+
+        result = self.proxmox.access.users(self.target_user).token(tokenid).post(expire=expire,privsep=privsep,comment=comment)
+        
         
         try:
-            return self.proxmox.access.users(self.target_user).token(tokenid).post(expire=expire,privsep=privsep,comment=comment)
+            return {"tokenid": tokenid,"value": result["value"],"expire": int(result["info"]["expire"]),"privsep": int(result["info"]["privsep"])}
         
         except ResourceException as e:
             raise RuntimeError(f"Proxmox token creation failed: {e}")

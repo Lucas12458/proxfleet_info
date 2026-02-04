@@ -1,4 +1,5 @@
-from proxfleet.proxmox_manager import *
+from proxfleet.proxmox_manager import ProxmoxManager
+from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI
@@ -12,6 +13,8 @@ from pathlib import Path
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
+admin_user = os.getenv("PROXMOX_USER")
+admin_pass = os.getenv("PROXMOX_PASSWORD")
 
 
 class GroupCreate(BaseModel):
@@ -46,20 +49,31 @@ class BackupCreate(BaseModel):
     vmid:str|None
     path:str = "/mnt/pve/nas-tri/dump/"
 
-def get_proxmox_manager(host: str) -> ProxmoxManager:
-    try:
-        return ProxmoxManager(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass)
-    except Exception as e:
-        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
-        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
+def get_token_for_host(host: str, session: dict) -> dict:
+    server = session["servers"].get(host)
+    if not server:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
+    tokenid = server.get("tokenid")
+    value = server.get("value")
+
+    if not tokenid or not value:
+        raise HTTPException(status_code=502, detail="Invalid token data")
+
+    return {
+        "token_name": tokenid,
+        "token_value": value
+    }
+
+def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
+    logging.debug(session)
+    token = get_token_for_host(host, session)
+    user = session["user"]
+    
+    return ProxmoxManager(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True, token_name=token["token_name"],token_value=token["token_value"])
 
 
 router = APIRouter(tags=["Manager"])
-proxmox_user = os.getenv("PROXMOX_USER")
-proxmox_pass = os.getenv("PROXMOX_PASSWORD")
-
-
 
 # path to the projet root 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

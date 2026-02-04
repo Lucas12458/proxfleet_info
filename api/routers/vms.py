@@ -20,21 +20,15 @@ def get_token_for_host(host: str, session: dict) -> dict:
     if not server:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    full_tokenid = server.get("full-tokenid")  
-    token_value = server.get("value")
+    tokenid = server.get("tokenid")
+    value = server.get("value")
 
-    if not full_tokenid or not token_value:
-        raise HTTPException(status_code=502, detail=f"Invalid token data for host {host}")
-
-    try:
-        user, token_name = full_tokenid.split("!", 1)
-    except ValueError:
-        raise HTTPException(status_code=502, detail=f"Invalid token format for host {host}")
+    if not tokenid or not value:
+        raise HTTPException(status_code=502, detail="Invalid token data")
 
     return {
-        "user": user,
-        "token_name": token_name,
-        "token_value": token_value
+        "token_name": tokenid,
+        "token_value": value
     }
 
 

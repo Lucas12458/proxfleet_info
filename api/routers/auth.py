@@ -112,11 +112,36 @@ async def login_for_access_token(data: LoginRequest):
 
 
 @router.post("/auth/logout")
-async def logout(response: Response, session_id: str | None = Cookie(default=None)):
-    if session_id:
-        SESSIONS.pop(session_id, None)
+async def logout(response: Response,session_cookie: str = Depends(api_cookie)):
+    if not session_cookie:
+        raise HTTPException(status_code=401,detail="Not authenticated")
 
-    response.delete_cookie("session_id")
+    session = SESSIONS.get(session_cookie)
+    
+    if not session:
+        raise HTTPException(status_code=401,detail="Not authenticated")
+    
+    servers = session.get("servers", {})
+    user = session.get("user")
+    for server, token_data in servers.items():
+        tokenid = token_data.get("tokenid")
+        
+        if not tokenid:
+            continue
+
+        try:
+            
+            proxmox_auth = ProxmoxAuth(proxmox_host=f"{server}.usmb-tri.fr",admin_user=admin_user,admin_password=admin_pass,target_user=user)
+            proxmox_auth.delete_token(tokenid)
+        
+        except Exception as e:
+            logging.warning(f"Failed to delete token {tokenid} on {server}: {e}")
+
+
+        
+    SESSIONS.pop(session_cookie, None)
+    response.delete_cookie("session_cookie")
+    
     return {"ok": True}
 
 
