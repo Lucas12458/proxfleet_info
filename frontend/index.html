@@ -69,10 +69,10 @@
       const [users, setUsers] = React.useState([]);
 
       React.useEffect(() => {
-        fetch("http://127.0.0.1:8000/csv/assignments") // <-- mets ton fichier JSON ici
-          .then(res => res.json())
-          .then(data => setUsers(data.data));
-      }, []);
+        fetch("http://127.0.0.1:8000/api/csv/assignments?csv_id=data.csv")
+        .then(res => res.json())
+        .then(data => setUsers(data.data));
+        }, []);
 
       return (
         <div>

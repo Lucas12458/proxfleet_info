@@ -136,12 +136,7 @@ async def get_vm_network(vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_
     return {"interfaces": proxmox_vm.get_network_interfaces(), "management_ip": proxmox_vm.management_ip()}
 
 @router.post("/server/{host}/vm/clone")
-async def clone_vm(
-    host: str,
-    vm_data: CloneVMRequest,
-    proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for_clone),
-    proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)
-):
+async def clone_vm(proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for_clone),proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
     
     if proxmox_vm.newid is None:
         proxmox_vm.newid = proxmox_manager.get_next_vmid()

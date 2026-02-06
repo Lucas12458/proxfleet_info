@@ -5,7 +5,7 @@
   <title>Proxfleet Login</title>
 
   <!-- CSS -->
-  <link rel="stylesheet" href="/front-end/style_auth.css" />
+  <link rel="stylesheet" href="style_auth.css" />
 
   <!-- React CDN -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -28,7 +28,7 @@
       async function handleSubmit(e) {
         e.preventDefault();
     
-        const res = await fetch("/auth/token", {
+        const res = await fetch("/api/auth/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

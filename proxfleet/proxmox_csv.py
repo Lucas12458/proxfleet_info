@@ -1,3 +1,4 @@
+from pathlib import Path
 import csv
 import logging
 import os
@@ -5,12 +6,12 @@ import shutil
 
 
 class ProxmoxCSV:
-    def __init__(self, csv_path: str):
+    def __init__(self, csv_path: str | Path):
         """
         Handles CSV file operations (read, write, copy).
         csv_path: path to the CSV file
         """
-        self.csv_path = csv_path
+        self.csv_path = Path(csv_path)
 
     def detect_delimiter(self):
         """

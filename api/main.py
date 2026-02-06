@@ -12,17 +12,14 @@ app = FastAPI(
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = BASE_DIR / "front-end"
-
-app.mount("/front-end", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="front-end")
-
-app.include_router(manager.router)
-app.include_router(vms.router)
-app.include_router(users.router)
-app.include_router(files.router)
-app.include_router(auth.router)
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+
+app.include_router(manager.router,prefix="/api")
+app.include_router(vms.router,prefix="/api")
+app.include_router(users.router,prefix="/api")
+app.include_router(files.router,prefix="/api")
+app.include_router(auth.router,prefix="/api")
+
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
