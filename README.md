@@ -1,6 +1,6 @@
-# Proxfleet Web API
+# Proxfleet Web API & Frontend
 
-A web API to manage multiple Proxmox servers in a clusterless configuration.  
+A web API designed to manage multiple Proxmox servers in a clusterless configuration, paired with a React frontend to visualize and manage Virtual Machines (VMs).
 
 
 ## Related Project
@@ -13,7 +13,7 @@ This project relies on the Proxfleet project:
 
 ## API Access
 
-Once the server is running:
+Once the API server is running:
 
 - **API base URL**:  
   `http://<host>:<port>/`
@@ -22,14 +22,25 @@ Once the server is running:
   `http://<host>:<port>/docs`
 
 
-## Installation & Setup
+## Frontend Access
+Once the frontend development server is running:
+- **Local URL**:
+  `http://localhost:5173` (Standard Vite port)
+
+<br>
+
+# Installation & Setup : API (Backend)
 
 ### 1. Create a virtual environment
-From the `proxfleet_info` directory:
+
+Navigate to the `proxfleet_info` directory:
+
 ```bash
 python -m venv venv
 ```
+
 ### 2. Activate the virtual environment
+
 Windows (PowerShell)
 ```powershell
 .\venv\Scripts\activate.ps1
@@ -50,12 +61,12 @@ pip install -r requirements.txt
 
 ### Environment Variables (Proxmox authentication)
 
-Create a `.env` file in the project root :
+Create a `.env` file in the project backend folder :
 
 **Use your credentials from the Proxmox servers:**
 ```bash
-export PROXMOX_USER=root@pam
-export PROXMOX_PASSWORD=myPassword123
+PROXMOX_USER=root@pam
+PROXMOX_PASSWORD=myPassword123
 ```
 
 ## Running the API
@@ -63,19 +74,74 @@ export PROXMOX_PASSWORD=myPassword123
 ### Production-like run
 
 ```bash
-uvicorn api.main:app
+uvicorn backend.api.main:app
 ```
 You can change the host and port using the `--host` and `--port` arguments.
 ```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Development mode (auto-reload)
+### Development mode (Auto-reload)
 
 ```bash
-uvicorn api.main:app --reload
+uvicorn backend.api.main:app --reload
 ```
 This command reloads the API server when a file is updated.
+
+
+# Installation & Setup : Frontend
+
+### 1. Requirements
+
+Ensure you have Node.js (v18+) installed.
+
+### 2. Install & Launch
+
+Navigate to the frontend directory and use your preferred package manager:
+
+```bash
+cd frontend
+```
+```bash
+npm install
+npm run dev
+```
+```bash
+yarn install
+yarn dev
+```
+```bash
+pnpm install
+pnpm dev
+```
+```bash
+bun install
+bun dev
+```
+
+# Production Build (Frontend)
+If you are ready to deploy the application to a production environment, you need to generate a minified and optimized bundle. This will create a dist/ (or build/) directory containing the static assets.
+
+Using npm
+```bash
+npm run build
+```
+
+Using Yarn
+```bash
+npm run build
+```
+
+Using pnpm
+```bash
+pnpm build
+```
+
+Using Bun
+```bash
+bun build
+```
+
 
 
 ## Development Guidelines
