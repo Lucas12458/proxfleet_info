@@ -14,6 +14,15 @@ logging.basicConfig(level=logging.DEBUG)
 admin_user = os.getenv("PROXMOX_USER")
 admin_pass = os.getenv("PROXMOX_PASSWORD")
 
+class VMAction(BaseModel):
+    action: str  # start, stop, shutdown, reboot, delete
+
+class CloneVMRequest(BaseModel):
+    newid: int |None = Field(default=None, gt=0)
+    name: str
+    template : int
+    pool: str
+    storage: str 
 
 def get_token_for_host(host: str, session: dict) -> dict:
     server = session["servers"].get(host)
@@ -81,22 +90,7 @@ def get_proxmox_vm_for_clone(host: str,vm_data: CloneVMRequest,session=Depends(a
     return vm
 
 
-
-
-
 router = APIRouter(tags=["Vms"])
-
-
-
-class VMAction(BaseModel):
-    action: str  # start, stop, shutdown, reboot, delete
-
-class CloneVMRequest(BaseModel):
-    newid: int |None = Field(default=None, gt=0)
-    name: str
-    template : int
-    pool: str
-    storage: str 
 
 @router.get("/server/{host}/vm")
 async def get_vms(host:str,proxmox_manager : ProxmoxManager = Depends(get_proxmox_manager)):
