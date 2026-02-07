@@ -5,7 +5,7 @@ import uuid
 import time
 
 class ProxmoxAuth:
-    def __init__( self,proxmox_host: str,admin_user: str,admin_password: str,target_user: str,verify_ssl: bool = True,):
+    def __init__( self,proxmox_host: str,admin_user: str,admin_password: str,target_user: str,verify_ssl: bool = True):
         """
         Docstring pour __init__
         

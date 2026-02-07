@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from fastapi.security import APIKeyCookie
 from proxmoxer import ProxmoxAPI
-from proxfleet.proxmox_authentication import *
+from backend.proxfleet.proxmox_authentication import ProxmoxAuth
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from pathlib import Path
@@ -58,7 +58,7 @@ async def check_server_and_create_token(host: str, username: str,password: str) 
     
     host_url = f"{host}.usmb-tri.fr"
     try:
-        await run_in_threadpool(ProxmoxAPI,host=host_url,user=username,password=password,verify_ssl=True)
+        await run_in_threadpool(ProxmoxAPI,host=host_url,user=username,password=password,verify_ssl=False)
         
         proxmox_auth = ProxmoxAuth(proxmox_host=host_url,admin_user=admin_user,admin_password=admin_pass,target_user=username)
         
@@ -72,6 +72,8 @@ async def check_server_and_create_token(host: str, username: str,password: str) 
 
 @router.post("/auth/token")
 async def login_for_access_token(data: LoginRequest):
+    logging.debug(data.password)
+    logging.debug(data.username)
     user = f"{data.username}@{data.realm}"
     password = data.password
     hosts_list = data.hosts
