@@ -9,6 +9,7 @@ app = FastAPI(
     title="ProxfleetAPI",
     description=description,
     version="0.0.1",
+    root_path="/app2/api",
 )
 
 origins = [
