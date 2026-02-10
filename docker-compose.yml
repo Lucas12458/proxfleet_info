@@ -22,7 +22,7 @@ services:
       - "traefik.http.routers.proxfleet.tls.certresolver=mon-ovh"
       
       # MIDDLEWARE : On retire /proxfleet avant d'envoyer à Nginx
-      - "traefik.http.middlewares.proxfleet-strip.stripprefix.prefixes=/proxfleet"
+      - "traefik.http.middlewares.proxfleet-strip.stripprefix.prefixes=/app2"
       - "traefik.http.routers.proxfleet.middlewares=proxfleet-strip"
       
       - "traefik.docker.network=reverse_proxy"
@@ -32,7 +32,7 @@ services:
       - reverse_proxy
       - proxfleet-internal
 
-      
+
 networks:
   # Réseau interne pour ton application
   proxfleet-internal:
