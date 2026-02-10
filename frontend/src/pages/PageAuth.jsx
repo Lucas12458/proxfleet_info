@@ -8,11 +8,12 @@ export default function Login() {
       const [server, setServer] = useState("pm-serv16");  // valeur par défaut
       const [error, setError] = useState("");
       const [ok, setOk] = useState(false);
+      const API_BASE = "/app2/api";
     
       async function handleSubmit(e) {
         e.preventDefault();
     
-        const res = await fetch("/api/auth/token", {
+        const res = await fetch(`${API_BASE}/auth/token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
