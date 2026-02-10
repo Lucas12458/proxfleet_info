@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     networks:
-      - proxfleet-internal # Réseau privé pour communiquer avec Nginx
+      - proxfleet-internal 
     restart: always
 
   # --- FRONTEND (Nginx + React) ---
@@ -16,12 +16,10 @@ services:
     container_name: proxfleet-ui
     labels:
       - "traefik.enable=true"
-      # On écoute sur le domaine ET le préfixe /proxfleet
       - "traefik.http.routers.proxfleet.rule=Host(`proxfleet.usmb-tri.fr`) && PathPrefix(`/app2`)"
       - "traefik.http.routers.proxfleet.entrypoints=websecure"
       - "traefik.http.routers.proxfleet.tls.certresolver=mon-ovh"
       
-      # MIDDLEWARE : On retire /proxfleet avant d'envoyer à Nginx
       - "traefik.http.middlewares.proxfleet-strip.stripprefix.prefixes=/app2"
       - "traefik.http.routers.proxfleet.middlewares=proxfleet-strip"
       
@@ -34,9 +32,7 @@ services:
 
 
 networks:
-  # Réseau interne pour ton application
   proxfleet-internal:
     driver: bridge
-  # Réseau externe du client pour Traefik
   reverse_proxy:
     external: true

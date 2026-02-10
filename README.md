@@ -16,16 +16,16 @@ This project relies on the Proxfleet project:
 Once the API server is running:
 
 - **API base URL**:  
-  `http://<host>:<port>/`
+  `http://<host>:<port>/app2/api/`
 
 - **Interactive API documentation (Swagger UI)**:  
-  `http://<host>:<port>/docs`
+  `http://<host>:<port>/app2/api/docs`
 
 
 ## Frontend Access
 Once the frontend development server is running:
 - **Local URL**:
-  `http://localhost:5173` (Standard Vite port)
+  `http://localhost:5173/app2` (Standard Vite port)
 
 <br>
 
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 
 ### Environment Variables (Proxmox authentication)
 
-Create a `.env` file in the project backend folder :
+Create a `.env` file in the project root directory:
 
 **Use your credentials from the Proxmox servers:**
 ```bash
@@ -71,20 +71,26 @@ PROXMOX_PASSWORD=myPassword123
 
 ## Running the API
 
+Navigate to the backend directory
+
+```bash
+cd backend
+```
+
 ### Production-like run
 
 ```bash
-uvicorn backend.api.main:app
+uvicorn api.main:app
 ```
 You can change the host and port using the `--host` and `--port` arguments.
 ```bash
-uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Development mode (Auto-reload)
 
 ```bash
-uvicorn backend.api.main:app --reload
+uvicorn api.main:app --reload
 ```
 This command reloads the API server when a file is updated.
 
