@@ -6,10 +6,11 @@ from pathlib import Path
 description = """"""
 
 app = FastAPI(
-    title="ProxfleetAPI",
+    title="Proxfleet API",
     description=description,
-    version="0.0.1",
-    root_path="/app2/api",
+    root_path="/app2/api", 
+    docs_url="/docs",
+    openapi_url="/openapi.json"
 )
 
 origins = [
