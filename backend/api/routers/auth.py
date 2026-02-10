@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from fastapi.security import APIKeyCookie
 from proxmoxer import ProxmoxAPI
-from backend.proxfleet.proxmox_authentication import ProxmoxAuth
+from proxfleet.proxmox_authentication import ProxmoxAuth
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from pathlib import Path

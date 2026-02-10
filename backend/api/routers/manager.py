@@ -1,5 +1,5 @@
-from backend.proxfleet.proxmox_manager import ProxmoxManager
-from backend.api.routers import auth
+from proxfleet.proxmox_manager import ProxmoxManager
+from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI

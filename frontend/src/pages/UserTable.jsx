@@ -6,7 +6,7 @@ export default function UsersTable() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/csv/assignments?csv_id=students_example.csv", {
+    fetch("/api/csv/assignments?csv_id=students_example.csv", {
       credentials: "include" // important si cookie de session
     })
       .then(res => res.json())

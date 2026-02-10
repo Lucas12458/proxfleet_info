@@ -2,9 +2,9 @@ import asyncio
 import logging
 import time
 import yaml
-from backend.proxfleet.proxmox_manager import ProxmoxManager
-from backend.proxfleet.proxmox_vm import ProxmoxVM
-from backend.proxfleet.proxmox_csv import ProxmoxCSV
+from proxfleet.proxmox_manager import ProxmoxManager
+from proxfleet.proxmox_vm import ProxmoxVM
+from proxfleet.proxmox_csv import ProxmoxCSV
 
 
 def load_csv_and_connections(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
