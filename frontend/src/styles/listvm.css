@@ -1,0 +1,91 @@
+/* === PAGE ENTIÈRE === */
+body {
+    background: #f2f4f7;
+    margin: 0;
+    padding: 0;
+    font-family: "Inter", sans-serif;
+  }
+  
+  /* === TITRE === */
+  .vm-title {
+    width: 100%;
+    text-align: left;
+    padding: 30px 40px;
+    font-size: 32px;
+    font-weight: 700;
+    color: #222;
+  }
+  
+  /* === TABLEAU LARGE === */
+  .vm-table-wrapper {
+    width: 95%;
+    margin: 0 auto;
+  }
+  
+  .vm-table {
+    width: 100%;
+    border-spacing: 0 4px;
+    margin: 0 auto;
+  }
+  
+  .vm-table thead th {
+    color: white;
+    padding: 16px;
+    font-size: 16px;
+  }
+  
+  .vm-table tbody tr {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  
+  .vm-table td {
+    padding: 18px;
+    font-size: 15px;
+  }
+  
+  /* === ACTIONS === */
+  .vm-actions {
+    display: flex;
+    gap: 18px; /* espace entre les boutons */
+  }
+  
+  /* === BOUTONS GROS, RONDS, PROPRES === */
+  .vm-actions button {
+    padding: 12px 22px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  
+  /* Start */
+  .btn-start {
+    background: #2ecc71;
+    color: white;
+  }
+  .btn-start:hover {
+    background: #27ae60;
+  }
+  
+  /* Stop */
+  .btn-stop {
+    background: #f39c12;
+    color: white;
+  }
+  .btn-stop:hover {
+    background: #d68910;
+  }
+  
+  /* Delete */
+  .btn-delete {
+    background: #e74c3c;
+    color: white;
+  }
+  .btn-delete:hover {
+    background: #c0392b;
+  }
+  
