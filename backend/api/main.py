@@ -2,15 +2,20 @@ from fastapi import FastAPI
 from api.routers import manager,vms,users,files,auth
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+import os
 
 description = """"""
+
+IS_PROD = os.getenv("ENV") == "production"
+
 
 app = FastAPI(
     title="Proxfleet API",
     description=description,
     root_path="/app2/api", 
-    docs_url="/docs",
-    openapi_url="/openapi.json"
+    docs_url=None if IS_PROD else "/docs",
+    redoc_url=None if IS_PROD else "/redoc",
+    openapi_url=None if IS_PROD else "/openapi.json"
 )
 
 origins = [
