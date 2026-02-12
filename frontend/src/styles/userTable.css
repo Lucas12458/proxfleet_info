@@ -6,12 +6,12 @@
 }
 
 
-.table-wrap {
+.userTable .table-wrap {
   display: flex;
   justify-content: center;
 }
 
-table {
+.userTable table {
   border-collapse: collapse;
   width: 95%;
   max-width: 1200px;
@@ -21,27 +21,27 @@ table {
   overflow: hidden;
 }
 
-th {
+.userTable th {
   background: #2d6cdf;
   color: white;
   padding: 12px;
   text-align: left;
 }
 
-td {
+.userTable td {
   padding: 10px 12px;
   border-bottom: 1px solid #e5e5e5;
 }
 
-tr:nth-child(even) {
+.userTable tr:nth-child(even) {
   background: #f0f4ff;
 }
 
-tr:hover {
+.userTable tr:hover {
   background: #e8f0ff;
 }
 
-.name {
+.userTable .name {
   font-weight: bold;
   color: #1a3d7c;
 }

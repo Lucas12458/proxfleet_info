@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ListVM from "./ListVM.jsx";
 import "../styles/style_auth.css";
 
@@ -11,10 +11,24 @@ export default function Login() {
 
   const API_BASE = "/app2/api";
 
+  // Vérifier session existante
+  useEffect(() => {
+    fetch(`${API_BASE}/server/${server}/vm`, {
+      credentials: "include"
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Not logged");
+        return res.json();
+      })
+      .then(data => {
+        setVms(data);
+      })
+      .catch(() => {});
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
 
-    // LOGIN
     const res = await fetch(`${API_BASE}/auth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -28,34 +42,34 @@ export default function Login() {
     });
 
     const data = await res.json();
-    console.log("LOGIN:", data);
 
     if (data.message !== "Logged in") {
       setError("Login incorrect");
       return;
     }
 
-    // Sauvegarder la session 
-    localStorage.setItem("logged", "true"); 
-    localStorage.setItem("server", server);
-    
-    // FETCH DES VMS
     const vmRes = await fetch(`${API_BASE}/server/${server}/vm`, {
       credentials: "include"
     });
 
     const vmData = await vmRes.json();
-    console.log("VMS:", vmData);
-
     setVms(vmData);
   }
 
-  // SI VMS CHARGÉES → ON AFFICHE ListVM
-  if (vms) {
-    return <ListVM server={server} vms={vms} />;
+  // LOGOUT
+  async function handleLogout() {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      credentials: "include"
+    });
+
+    setVms(null); // retour login
   }
 
-  // SINON → FORMULAIRE DE LOGIN
+  if (vms) {
+    return <ListVM server={server} vms={vms} onLogout={handleLogout} />;
+  }
+
   return (
     <div className="pageAuth">
       <form onSubmit={handleSubmit}>

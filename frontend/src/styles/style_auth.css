@@ -12,7 +12,7 @@
     align-items: center;
   }
   
-  form {
+  .pageAuth form {
     background: #0f452a;
     padding: 2rem;
     border-radius: 8px;
@@ -20,12 +20,12 @@
     box-shadow: 0 0 20px rgba(0,0,0,.5);
   }
   
-  h2 {
+  .pageAuth h2 {
     text-align: center;
     margin-bottom: 1rem;
   }
   
-  input {
+  .pageAuth input {
     width: 100%;
     padding: 10px;
     margin-bottom: 1rem;
@@ -33,7 +33,7 @@
     border-radius: 4px;
   }
   
-  button {
+  .pageAuth button {
     width: 100%;
     padding: 10px;
     background: #234591;
@@ -43,15 +43,15 @@
     cursor: pointer;
   }
   
-  button:hover {
+  .pageAuth button:hover {
     background: #1d4ed8;
   }
   
-  .error {
+  .pageAuth .error {
     color: #f87171;
     text-align: center;
   }
-  select {
+  .pageAuth select {
     width: 100%;
     padding: 10px;
     margin-bottom: 1rem;
@@ -62,11 +62,11 @@
     cursor: pointer;
   }
   
-  select:focus {
+  .pageAuth select:focus {
     outline: 2px solid #2563eb;
   }
   
-  option {
+  .pageAuth option {
     background: #1e293b;
     color: white;
   }
