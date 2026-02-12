@@ -7,47 +7,86 @@ export default function ListVM({ server, vms, onLogout }) {
   const [vmName, setVmName] = useState("");
   const [showInput, setShowInput] = useState(false); // <-- IMPORTANT
 
+  const API_BASE = "/app2/api";
+
   async function createVMConfirm() {
     if (!vmName.trim()) {
       alert("Entre un nom de VM");
       return;
     }
-
+  
     try {
-      const response = await fetch(`/server/${server}/vm/clone`, {
+      const response = await fetch(`${API_BASE}/server/${server}/vm/clone`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           newid: null,
           name: vmName,
-          template: 123,
-          pool: "default",
-          storage: "local-lvm"
+          template: 500,
+          pool: "projetinfo",
+          storage: "data"
         })
       });
-
-      const newVM = await response.json();
-
-      setVmList(prev => [...prev, newVM]);
+  
+      const upid = await response.json();
+      console.log("Clone lancé :", upid);
+  
+      // On recharge la liste des VM
+      const vmRes = await fetch(`${API_BASE}/server/${server}/vm`, {
+        credentials: "include"
+      });
+      const vmData = await vmRes.json();
+      setVmList(vmData);
+  
       setVmName("");
-      setShowInput(false); // on referme le formulaire
-
+      setShowInput(false);
+  
     } catch (err) {
       console.error("Erreur création VM :", err);
     }
   }
+  
+  
 
+  async function vmAction(vmid, action) {
+    try {
+      const response = await fetch(`${API_BASE}/server/${server}/vm/${vmid}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action })
+      });
+  
+      const result = await response.json();
+      console.log("API RESULT:", result);
+  
+      // Recharger la liste après l'action
+      const vmRes = await fetch(`${API_BASE}/server/${server}/vm`, {
+        credentials: "include"
+      });
+      const vmData = await vmRes.json();
+      setVmList(vmData);
+  
+    } catch (err) {
+      console.error("Erreur API action VM :", err);
+    }
+  }
+  
+  
+  
   function startVM(vmid) {
-    console.log("Start VM", vmid);
+    vmAction(vmid, "start");
   }
-
+  
   function stopVM(vmid) {
-    console.log("Stop VM", vmid);
+    vmAction(vmid, "stop");
   }
-
+  
   function deleteVM(vmid) {
-    console.log("Delete VM", vmid);
+    vmAction(vmid, "delete");
   }
+  
 
   return (
     <>
