@@ -1,10 +1,9 @@
 @echo off
-
 echo Bienvenue dans Proxfleet !
-echo Démarrage du conteneur Docker...
+echo Demarrage du conteneur Docker...
 
 docker start proxfleet-container >nul 2>&1
 
-timeout /t 2 >nul
+timeout /t 3 >nul
 
-start http://localhost:8000/docs
+start http://localhost:5173/app2
