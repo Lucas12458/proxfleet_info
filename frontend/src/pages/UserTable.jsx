@@ -8,17 +8,20 @@ export default function UsersTable() {
 
 
   useEffect(() => {
-    fetch(`${API_BASE}/csv/assignments?csv_id=students_example.csv`, {
+    fetch(`${API_BASE}/csv/read?csv_path=C%3A%5Ctmp%5Cuploads%5Cstudents_example.csv`, {
       credentials: "include" // important si cookie de session
     })
       .then(res => res.json())
-      .then(data => setUsers(data.data))
+      .then(data => {
+        console.log(data);
+        setUsers(data);})
       .catch(err => console.error(err));
   }, []);
 
   return (
     <div className="userTable">
       <Link to="/auth">Page auth</Link>
+      <Link to="/files">FileNames</Link>
 
       <div className="table-wrap">
         <table>
@@ -34,14 +37,13 @@ export default function UsersTable() {
           </thead>
 
           <tbody>
-            {users.map((u, i) => (
+          {users && users.map((u, i) => (
               <tr key={i}>
-                <td>{u.promotion}</td>
-                <td className="name">{u.nom}</td>
-                <td>{u.prenom}</td>
-                <td>{u.uid}</td>
-                <td>{u.server_id}</td>
-                <td>{u.server_name || "—"}</td>
+              <td>{u.Promotion}</td>          
+              <td className="name">{u.Nom}</td>
+              <td>{u.Prenom || u.Prénom}</td>
+              <td>{u.Serveur}</td>  
+              <td>{u["Nom-serveur"] || "—"}</td>
               </tr>
             ))}
           </tbody>

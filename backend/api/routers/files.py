@@ -180,14 +180,20 @@ async def write_csv(csv_data:CSVWrite,proxmox_csv:ProxmoxCSV = Depends(get_proxm
 
 
 
-@router.get("/csv/assignments")
-async def get_assignments(csv_id: str):
-    file_path = UPLOAD_DIR / csv_id
-
-    if not file_path.exists():
-        raise HTTPException(404, "CSV not found")
-
-    proxmox_csv = ProxmoxCSV(csv_path=file_path)
-    return parse_csv(proxmox_csv)
-
-
+@router.get("/csv/filename")
+async def filename_csv():
+    """
+    Liste tout les noms de fichiers CSV disponible dans le folder tmp/uploads.
+    """
+    try:
+        files = list(UPLOAD_DIR.glob("*.csv"))
+        filenames = []
+        for i in files:
+            filenames.append(i.name)
+        return {
+            "filenames": filenames,
+        }
+    
+    except Exception as e:
+        logging.error(f"Error listing filenames: {e}")
+        raise HTTPException(500, "Unable to list CSV files")
