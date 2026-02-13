@@ -6,4 +6,4 @@ docker start proxfleet-container >nul 2>&1
 
 timeout /t 2 >nul
 
-start http://localhost:8000
+start http://localhost:8000/docs
