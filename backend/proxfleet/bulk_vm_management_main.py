@@ -1,4 +1,4 @@
-from bulk_vm_management import *
+from proxfleet.bulk_vm_management import *
 from dotenv import load_dotenv
 import argparse
 import logging

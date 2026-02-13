@@ -1,4 +1,4 @@
-from proxfleet.proxmox_manager import *
+from proxfleet.proxmox_manager import ProxmoxManager
 from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
@@ -13,6 +13,8 @@ from pathlib import Path
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
+admin_user = os.getenv("PROXMOX_USER")
+admin_pass = os.getenv("PROXMOX_PASSWORD")
 
 
 class GroupCreate(BaseModel):
@@ -47,21 +49,31 @@ class BackupCreate(BaseModel):
     vmid:str|None
     path:str = "/mnt/pve/nas-tri/dump/"
 
-def get_proxmox_manager(host: str) -> ProxmoxManager:
-    try:
-        return ProxmoxManager(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass)
-    except Exception as e:
-        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
-        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
+def get_token_for_host(host: str, session: dict) -> dict:
+    server = session["servers"].get(host)
+    if not server:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
+    tokenid = server.get("tokenid")
+    value = server.get("value")
+
+    if not tokenid or not value:
+        raise HTTPException(status_code=502, detail="Invalid token data")
+
+    return {
+        "token_name": tokenid,
+        "token_value": value
+    }
+
+def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
+    logging.debug(session)
+    token = get_token_for_host(host, session)
+    user = session["user"]
+    
+    return ProxmoxManager(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True, token_name=token["token_name"],token_value=token["token_value"])
 
 
 router = APIRouter(tags=["Manager"])
-router = APIRouter(tags=["Spreadsheet"])
-proxmox_user = os.getenv("PROXMOX_USER")
-proxmox_pass = os.getenv("PROXMOX_PASSWORD")
-
-
 
 # path to the projet root 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -84,7 +96,7 @@ async def get_servers():
     return servers
     
 @router.get("/server/{host}/pools")
-async def get_pools(user=Depends(auth.get_current_user),proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_pools(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.list_pools()
 
 @router.get("/server/{host}/interfaces")
@@ -151,34 +163,3 @@ async def check_storage_exists(storage_name:str,proxmox_manager:ProxmoxManager =
 @router.get("/server/{host}/nextvm")
 async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.get_next_vmid()
-
-
-
-@router.get("/sheet/assignments")
-async def get_vm_assignments():
-    url = (f"https://docs.google.com/spreadsheets/d/1vht7HaV6jwAwHuT93ZJXDnu7BOzEcsWD/gviz/tq?tqx=out:csv&sheet=Feuille1")
-
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.get(url)
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch Google Sheet")
-
-    reader = csv.DictReader(io.StringIO(resp.text))
-
-    data = []
-    for row in reader:
-        if any(v and v.strip() for v in row.values()):
-            data.append({
-                "promotion": row["Promotion"],
-                "nom": row["Nom"],
-                "prenom": row["Prenom"],
-                "uid": row["uid"],
-                "server_id": int(row["Serveur"]),
-                "server_name": row["Nom-serveur"],
-            })
-
-    return {
-        "count": len(data),
-        "data": data
-    }

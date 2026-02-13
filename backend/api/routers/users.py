@@ -1,24 +1,43 @@
-from proxfleet.proxmox_manager import *
-from proxfleet.proxmox_etu import *
-
+from proxfleet.proxmox_manager import ProxmoxManager
+from proxfleet.proxmox_etu import ProxmoxEtu
+from api.routers import auth
 from fastapi import Depends,APIRouter,HTTPException
 from pydantic import BaseModel
 import os
 import dotenv
 import logging
-import yaml
-from pathlib import Path
+
+
 
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
 
-def get_proxmox_manager(host: str) -> ProxmoxManager:
-    try:
-        return ProxmoxManager(f"{host}.usmb-tri.fr", proxmox_user, proxmox_pass)
-    except Exception as e:
-        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
-        raise HTTPException(status_code=500,detail=f"Unable to connect to host {host}")
+def get_token_for_host(host: str, session: dict) -> dict:
+    server = session["servers"].get(host)
+    if not server:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    tokenid = server.get("tokenid")
+    value = server.get("value")
+
+    if not tokenid or not value:
+        raise HTTPException(status_code=502, detail="Invalid token data")
+
+    return {
+        "token_name": tokenid,
+        "token_value": value
+    }
+
+
+
+def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
+    logging.debug(session)
+    token = get_token_for_host(host, session)
+    user = session["user"]
+    
+    return ProxmoxManager(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True, token_name=token["token_name"],token_value=token["token_value"])
+
 
 class UserCreate(BaseModel):
      realm: str = "pam"

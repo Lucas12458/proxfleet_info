@@ -1,0 +1,38 @@
+services:
+  # --- BACKEND (FastAPI) ---
+  backend:
+    build: 
+      context: ./backend
+    container_name: proxfleet-api
+    env_file:
+      - .env
+    networks:
+      - proxfleet-internal 
+    restart: always
+
+  # --- FRONTEND (Nginx + React) ---
+  frontend:
+    build: ./frontend
+    container_name: proxfleet-ui
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.proxfleet.rule=Host(`proxfleet.usmb-tri.fr`) && PathPrefix(`/app2`)"
+      - "traefik.http.routers.proxfleet.entrypoints=websecure"
+      - "traefik.http.routers.proxfleet.tls.certresolver=mon-ovh"
+      
+      - "traefik.http.middlewares.proxfleet-strip.stripprefix.prefixes=/app2"
+      - "traefik.http.routers.proxfleet.middlewares=proxfleet-strip"
+      
+      - "traefik.docker.network=reverse_proxy"
+      - "traefik.http.services.proxfleet.loadbalancer.server.port=80"
+
+    networks:
+      - reverse_proxy
+      - proxfleet-internal
+
+
+networks:
+  proxfleet-internal:
+    driver: bridge
+  reverse_proxy:
+    external: true

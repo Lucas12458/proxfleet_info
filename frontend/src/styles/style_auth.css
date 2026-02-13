@@ -3,7 +3,7 @@
     font-family: Arial, sans-serif;
   }
   
-  body {
+  .pageAuth {
     background: #e5e7eb;
     color: #e5e7eb;
     height: 100vh;
@@ -12,20 +12,20 @@
     align-items: center;
   }
   
-  form {
-    background: #020617;
+  .pageAuth form {
+    background: #0f452a;
     padding: 2rem;
     border-radius: 8px;
     width: 320px;
     box-shadow: 0 0 20px rgba(0,0,0,.5);
   }
   
-  h2 {
+  .pageAuth h2 {
     text-align: center;
     margin-bottom: 1rem;
   }
   
-  input {
+  .pageAuth input {
     width: 100%;
     padding: 10px;
     margin-bottom: 1rem;
@@ -33,22 +33,41 @@
     border-radius: 4px;
   }
   
-  button {
+  .pageAuth button {
     width: 100%;
     padding: 10px;
-    background: #2563eb;
+    background: #234591;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
   }
   
-  button:hover {
+  .pageAuth button:hover {
     background: #1d4ed8;
   }
   
-  .error {
+  .pageAuth .error {
     color: #f87171;
     text-align: center;
+  }
+  .pageAuth select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 1rem;
+    border: none;
+    border-radius: 4px;
+    background: #7d8289; /* même style que input */
+    color: white;
+    cursor: pointer;
+  }
+  
+  .pageAuth select:focus {
+    outline: 2px solid #2563eb;
+  }
+  
+  .pageAuth option {
+    background: #1e293b;
+    color: white;
   }
   

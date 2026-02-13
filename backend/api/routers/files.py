@@ -1,7 +1,6 @@
-from proxfleet.proxmox_csv import *
-
-from fastapi import Depends,APIRouter,HTTPException,File,UploadFile
-from pydantic import BaseModel,Field
+from proxfleet.proxmox_csv import ProxmoxCSV
+from fastapi import Depends,APIRouter,HTTPException,UploadFile,File
+from pydantic import BaseModel
 import os
 import dotenv
 import logging
@@ -17,8 +16,6 @@ class CSVWrite(BaseModel):
     field_names : list[str]
     
 
-
-dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
 UPLOAD_DIR = Path("/tmp/uploads")
@@ -31,16 +28,57 @@ ALLOWED_TYPES = {
 
 
 def get_proxmox_csv(csv_path: str) -> ProxmoxCSV:
-    
-    return ProxmoxCSV(csv_path=csv_path)
+    file_path = Path(csv_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="CSV not found")
+    return ProxmoxCSV(csv_path=file_path)
+
+
+
+def parse_csv(proxmox_csv: ProxmoxCSV = Depends(get_proxmox_csv)):
+    try:
+        delimiter = proxmox_csv.detect_delimiter()
+        reader = proxmox_csv.read_csv(delimiter=delimiter)
+
+        data = []
+        for row in reader:
+            if not any(v and v.strip() for v in row.values()):
+                continue
+
+            server_id = row.get("Serveur")
+            if not server_id or not server_id.isdigit():
+                continue
+
+            data.append({
+                "promotion": row.get("Promotion"),
+                "nom": row.get("Nom"),
+                "prenom": row.get("Prenom"),
+                "uid": row.get("uid"),
+                "server_id": int(server_id),
+                "server_name": row.get("Nom-serveur"),
+            })
+
+        return {
+            "count": len(data),
+            "data": data
+        }
+
+    except FileNotFoundError:
+        raise HTTPException(404, "CSV not found")
+
+    except (UnicodeDecodeError, RuntimeError):
+        raise HTTPException(400, "Invalid CSV")
+
+    except Exception:
+        logging.exception("Failed to parse CSV")
+        raise HTTPException(500, "Unable to read CSV")
+
     
         
 router = APIRouter(tags=["CSV"])
-proxmox_user = os.getenv("PROXMOX_USER")
-proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
 @router.post("/csv/upload",status_code=201)
-async def create_upload_csv(csv: UploadFile):
+async def create_upload_csv(csv: UploadFile = File(...)):
     if csv.content_type not in ALLOWED_TYPES:
         raise HTTPException(415, "Invalid file type")
     else:
@@ -142,33 +180,20 @@ async def write_csv(csv_data:CSVWrite,proxmox_csv:ProxmoxCSV = Depends(get_proxm
 
 
 
-
-
-@router.get("/csv/assignments")
-async def get_vm_assignments():
-    url = (f"https://docs.google.com/spreadsheets/d/1vht7HaV6jwAwHuT93ZJXDnu7BOzEcsWD/gviz/tq?tqx=out:csv&sheet=Feuille1")
-
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.get(url)
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch Google Sheet")
-
-    reader = csv.DictReader(io.StringIO(resp.text))
-
-    data = []
-    for row in reader:
-        if any(v and v.strip() for v in row.values()):
-            data.append({
-                "promotion": row["Promotion"],
-                "nom": row["Nom"],
-                "prenom": row["Prenom"],
-                "uid": row["uid"],
-                "server_id": int(row["Serveur"]),
-                "server_name": row["Nom-serveur"],
-            })
-
-    return {
-        "count": len(data),
-        "data": data
-    }
+@router.get("/csv/filename")
+async def filename_csv():
+    """
+    Liste tout les noms de fichiers CSV disponible dans le folder tmp/uploads.
+    """
+    try:
+        files = list(UPLOAD_DIR.glob("*.csv"))
+        filenames = []
+        for i in files:
+            filenames.append(i.name)
+        return {
+            "filenames": filenames,
+        }
+    
+    except Exception as e:
+        logging.error(f"Error listing filenames: {e}")
+        raise HTTPException(500, "Unable to list CSV files")
