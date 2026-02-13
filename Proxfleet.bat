@@ -1,6 +1,7 @@
 @echo off
 
-echo Starting Proxfleet...
+echo Bienvenue dans Proxfleet !
+echo Démarrage du conteneur Docker...
 
 docker start proxfleet-container >nul 2>&1
 
