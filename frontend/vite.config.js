@@ -1,16 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+const base_path = process.env.VITE_BASE_PATH || '/app2/';
+
 export default defineConfig({
   plugins: [react()],
-  base: '/app2/',
+  base: base_path,
   server: {
     proxy: {
-      '/app2/api': {
+      [`${base_path}api`]: {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/app2\/api/, '')
+        rewrite: (path) => path.replace(new RegExp(`^${base_path}api`), '')
       },
     },
   },

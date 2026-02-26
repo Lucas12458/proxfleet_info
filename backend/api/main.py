@@ -6,16 +6,17 @@ import os
 
 description = """"""
 
-IS_PROD = os.getenv("ENV") == "production"
+APP_PATH = os.getenv("APP_PATH", "/app2")
+ENV_TYPE = os.getenv("ENV", "production")
 
 
 app = FastAPI(
     title="Proxfleet API",
     description=description,
-    root_path="/app2/api", 
-    docs_url=None if IS_PROD else "/docs",
-    redoc_url=None if IS_PROD else "/redoc",
-    openapi_url=None if IS_PROD else "/openapi.json"
+    root_path=f"{APP_PATH}/api",
+    docs_url=None if ENV_TYPE == "production" else "/docs",
+    redoc_url=None if ENV_TYPE == "production" else "/redoc",
+    openapi_url=None if ENV_TYPE == "production" else "/openapi.json"
 )
 
 origins = [
