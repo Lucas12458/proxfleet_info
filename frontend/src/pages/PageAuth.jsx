@@ -14,7 +14,8 @@ export default function Login() {
   const [isLogged, setIsLogged] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  const API_BASE = "/app2/api";
+    const API_BASE = `${import.meta.env.VITE_BASE_PATH}api`;
+
 
   /**
    * Vérification automatique de session

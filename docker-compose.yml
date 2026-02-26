@@ -1,35 +1,35 @@
 services:
   # --- BACKEND (FastAPI) ---
   backend:
-    build: 
-      context: ./backend
-    container_name: proxfleet-api
-    env_file:
-      - .env
+    image: ghcr.io/${REPO_NAME}-backend:${APP_TAG}
+    container_name: ${PROJECT_ID}-api
+    environment:
+      - APP_PATH=${APP_PATH}
+      - ENV=${ENV}
     networks:
-      - proxfleet-internal 
+      - proxfleet-internal
     restart: always
 
   # --- FRONTEND (Nginx + React) ---
   frontend:
-    build: ./frontend
-    container_name: proxfleet-ui
+    image: ghcr.io/${REPO_NAME}-frontend:${APP_TAG}
+    container_name: ${PROJECT_ID}-ui
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.proxfleet.rule=Host(`proxfleet.usmb-tri.fr`) && PathPrefix(`/app2`)"
-      - "traefik.http.routers.proxfleet.entrypoints=websecure"
-      - "traefik.http.routers.proxfleet.tls.certresolver=mon-ovh"
+      - "traefik.http.routers.${PROJECT_ID}.rule=Host(`proxfleet.usmb-tri.fr`) && PathPrefix(`${APP_PATH}`)"
+      - "traefik.http.routers.${PROJECT_ID}.entrypoints=websecure"
+      - "traefik.http.routers.${PROJECT_ID}.tls.certresolver=mon-ovh"
       
-      - "traefik.http.middlewares.proxfleet-strip.stripprefix.prefixes=/app2"
-      - "traefik.http.routers.proxfleet.middlewares=proxfleet-strip"
+      # Middleware pour enlever le préfixe (/app2 ou /app2-dev)
+      - "traefik.http.middlewares.cut-${PROJECT_ID}.stripprefix.prefixes=${APP_PATH}"
+      - "traefik.http.routers.${PROJECT_ID}.middlewares=cut-${PROJECT_ID}"
       
       - "traefik.docker.network=reverse_proxy"
-      - "traefik.http.services.proxfleet.loadbalancer.server.port=80"
-
+      - "traefik.http.services.${PROJECT_ID}.loadbalancer.server.port=80"
     networks:
       - reverse_proxy
       - proxfleet-internal
-
+    restart: always
 
 networks:
   proxfleet-internal:
