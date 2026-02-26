@@ -38,7 +38,7 @@ export default function ListVM({ server, vms, onLogout }) {
 
     try {
       let storageName = "data"; 
-      if (server === 18 || server === 19) { 
+      if (server === "pm-serv18" || server === "pm-serv19") { 
         storageName = "data2"; 
       }
       const response = await fetch(
