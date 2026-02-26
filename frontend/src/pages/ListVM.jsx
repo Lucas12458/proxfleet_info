@@ -37,6 +37,10 @@ export default function ListVM({ server, vms, onLogout }) {
     }
 
     try {
+      let storageName = "data"; 
+      if (server === 18 || server === 19) { 
+        storageName = "data2"; 
+      }
       const response = await fetch(
         `${API_BASE}/server/${server}/vm/clone`,
         {
@@ -48,7 +52,7 @@ export default function ListVM({ server, vms, onLogout }) {
             name: vmName,
             template: 500,
             pool: "projetinfo",
-            storage: "data"
+            storage: storageName
           })
         }
       );
