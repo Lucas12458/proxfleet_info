@@ -4,7 +4,8 @@ import "../styles/userTable.css";
 
 export default function UsersTable() {
   const [users, setUsers] = useState([]);
-  const API_BASE = "/app2/api";
+    const API_BASE = `${import.meta.env.VITE_BASE_PATH}api`;
+
 
 
   useEffect(() => {
