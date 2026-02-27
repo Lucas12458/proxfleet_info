@@ -18,7 +18,7 @@ class CSVWrite(BaseModel):
 
 logging.basicConfig(level=logging.DEBUG)
 
-UPLOAD_DIR = Path("/tmp/uploads")
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/data"))
 
 ALLOWED_TYPES = {
     "text/csv",
