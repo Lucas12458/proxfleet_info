@@ -82,9 +82,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
 app = FastAPI()
-@app.get("/front-end")
-def front():
-    return FileResponse("front-end/index.html")
 
 @router.get("/servers")
 async def get_servers():
