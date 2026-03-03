@@ -9,7 +9,8 @@ export default function ListVM({ server, vms, onLogout }) {
   const [vmName, setVmName] = useState("");
   const [showInput, setShowInput] = useState(false);
 
-  const API_BASE = `${import.meta.env.VITE_BASE_PATH}api`;
+  const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
+  const API_BASE = `${BASE}api`;
 
   /**
    * IMPORTANT :
