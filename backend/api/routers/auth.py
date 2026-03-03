@@ -72,8 +72,6 @@ async def check_server_and_create_token(host: str, username: str,password: str) 
 
 @router.post("/auth/token")
 async def login_for_access_token(data: LoginRequest):
-    logging.debug(data.password)
-    logging.debug(data.username)
     user = f"{data.username}@{data.realm}"
     password = data.password
     hosts_list = data.hosts
