@@ -3,122 +3,92 @@ import { useState, useEffect } from "react";
 
 export default function ListVM({ server, vms, onLogout }) {
 
-  // Liste locale des VM (source affichée)
+  // Liste locale des VM
   const [vmList, setVmList] = useState(vms);
 
+  // Création de VM
   const [vmName, setVmName] = useState("");
   const [showInput, setShowInput] = useState(false);
 
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
-  /**
-   * IMPORTANT :
-   * Si le parent recharge les VM (refresh / changement serveur),
-   * on synchronise la liste locale.
-   */
+  // Quand le parent recharge les VM → on met à jour
   useEffect(() => {
     setVmList(vms);
   }, [vms]);
 
+  // Recharge les VM du serveur
   async function reloadVMs() {
-    const vmRes = await fetch(
-      `${API_BASE}/server/${server}/vm`,
-      { credentials: "include" }
-    );
+    const vmRes = await fetch(`${API_BASE}/server/${server}/vm`, {
+      credentials: "include"
+    });
 
     const vmData = await vmRes.json();
     setVmList(vmData);
   }
 
+  // Création d'une VM
   async function createVMConfirm() {
-    if (!vmName.trim()) {
-      alert("Entre un nom de VM");
-      return;
+    if (!vmName.trim()) return alert("Entre un nom de VM");
+
+    // Choix du stockage selon le serveur
+    let storageName = "data";
+    if (server === "pm-serv18" || server === "pm-serv19") {
+      storageName = "data2";
     }
 
-    try {
-      let storageName = "data"; 
-      if (server === "pm-serv18" || server === "pm-serv19") { 
-        storageName = "data2"; 
+    const response = await fetch(
+      `${API_BASE}/server/${server}/vm/clone`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          newid: null,
+          name: vmName,
+          template: 500,
+          pool: "projetinfo",
+          storage: storageName
+        })
       }
-      const response = await fetch(
-        `${API_BASE}/server/${server}/vm/clone`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            newid: null,
-            name: vmName,
-            template: 500,
-            pool: "projetinfo",
-            storage: storageName
-          })
-        }
-      );
+    );
 
-      const upid = await response.json();
-      console.log("Clone lancé :", upid);
+    await response.json();
 
-      // attendre un peu que Proxmox crée la VM
-      setTimeout(() => {
-        reloadVMs();
-      }, 4000);
+    // On attend un peu que Proxmox crée la VM
+    setTimeout(() => reloadVMs(), 4000);
 
-      setVmName("");
-      setShowInput(false);
-
-    } catch (err) {
-      console.error("Erreur création VM :", err);
-    }
+    setVmName("");
+    setShowInput(false);
   }
 
+  // Action sur une VM (start/stop/delete)
   async function vmAction(vmid, action) {
-    try {
-      const response = await fetch(
-        `${API_BASE}/server/${server}/vm/${vmid}/action`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ action })
-        }
-      );
+    await fetch(
+      `${API_BASE}/server/${server}/vm/${vmid}/action`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action })
+      }
+    );
 
-      const result = await response.json();
-      console.log("API RESULT:", result);
-
-      setTimeout(() => {
-        reloadVMs();
-      }, 2000);
-
-    } catch (err) {
-      console.error("Erreur API action VM :", err);
-    }
-  }
-
-  function startVM(vmid) {
-    vmAction(vmid, "start");
-  }
-
-  function stopVM(vmid) {
-    vmAction(vmid, "stop");
-  }
-
-  function deleteVM(vmid) {
-    vmAction(vmid, "delete");
+    // On attend un peu que Proxmox mette à jour l'état
+    setTimeout(() => reloadVMs(), 2000);
   }
 
   return (
     <>
       <div className="vm-header">
         <h2 className="vm-title">VMs du serveur {server}</h2>
+
+        {/* Bouton Logout pour CE serveur */}
         <button className="logout-btn" onClick={onLogout}>Logout</button>
       </div>
 
       <div className="create-row">
-
         {!showInput && (
           <button className="create-btn" onClick={() => setShowInput(true)}>
             Créer VM
@@ -139,7 +109,6 @@ export default function ListVM({ server, vms, onLogout }) {
             </button>
           </>
         )}
-
       </div>
 
       <div className="vm-table-wrapper">
@@ -160,9 +129,9 @@ export default function ListVM({ server, vms, onLogout }) {
                 <td>{vm.name}</td>
                 <td>{vm.status}</td>
                 <td className="vm-actions">
-                  <button className="btn-start" onClick={() => startVM(vm.vmid)}>Start</button>
-                  <button className="btn-stop" onClick={() => stopVM(vm.vmid)}>Stop</button>
-                  <button className="btn-delete" onClick={() => deleteVM(vm.vmid)}>Delete</button>
+                  <button className="btn-start" onClick={() => vmAction(vm.vmid, "start")}>Start</button>
+                  <button className="btn-stop" onClick={() => vmAction(vm.vmid, "stop")}>Stop</button>
+                  <button className="btn-delete" onClick={() => vmAction(vm.vmid, "delete")}>Delete</button>
                 </td>
               </tr>
             ))}

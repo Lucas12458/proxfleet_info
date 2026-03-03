@@ -2,30 +2,83 @@ import { useState, useEffect } from "react";
 import ListVM from "./ListVM.jsx";
 import "../styles/style_auth.css";
 
-export default function Login() {
+export default function PageAuth() {
+
+  // Champs du formulaire
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  // Serveur sélectionné (ou "all")
   const [server, setServer] = useState(
     localStorage.getItem("server") || "pm-serv16"
   );
 
+  // Gestion des erreurs
   const [error, setError] = useState("");
-  const [vms, setVms] = useState(null);
+
+  // Liste des VM de tous les serveurs sélectionnés
+  const [allServersVMs, setAllServersVMs] = useState(null);
+
+  // État de connexion
   const [isLogged, setIsLogged] = useState(false);
+
+  // Pour afficher "Chargement..." pendant la vérification de session
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Base API
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
+  // Liste des serveurs disponibles
+  const SERVERS = [
+    "pm-serv16",
+    "pm-serv17",
+    "pm-serv18",
+    "pm-serv19",
+    "pm-serv20",
+    "pm-serv21"
+  ];
 
-  /**
-   * Vérification automatique de session
-   * uniquement si l'utilisateur s'est déjà connecté.
-   */
+  // Retourne la liste des serveurs sélectionnés
+  function getSelectedServers() {
+    return server === "all" ? SERVERS : [server];
+  }
+
+  // Charge les VM de tous les serveurs sélectionnés
+  async function loadAllVMs() {
+    const selected = getSelectedServers();
+    const results = [];
+
+    for (const srv of selected) {
+
+      // Appel API pour récupérer les VM du serveur
+      const res = await fetch(`${API_BASE}/server/${srv}/vm`, {
+        credentials: "include"
+      });
+
+      // Si le serveur renvoie une erreur → on passe au suivant
+      if (!res.ok) continue;
+
+      let data;
+      try {
+        // On tente de parser le JSON
+        data = await res.json();
+      } catch {
+        // Si JSON invalide → on ignore ce serveur
+        continue;
+      }
+
+      // On stocke les VM de ce serveur
+      results.push({ server: srv, vms: data });
+    }
+
+    return results;
+  }
+
+  // Vérifie si une session existe déjà
   useEffect(() => {
     const hasLoggedOnce = localStorage.getItem("hasLoggedOnce");
 
-    // Première ouverture → pas de check session inutile
     if (!hasLoggedOnce) {
       setCheckingSession(false);
       return;
@@ -37,25 +90,17 @@ export default function Login() {
       setCheckingSession(true);
 
       try {
-        const res = await fetch(
-          `${API_BASE}/server/${server}/vm`,
-          { credentials: "include" }
-        );
-
-        if (!res.ok) throw new Error("No session");
-
-        const data = await res.json();
-
+        const results = await loadAllVMs();
         if (cancelled) return;
 
-        setIsLogged(true);
-        setVms(data);
-      } catch {
-        if (cancelled) return;
-
-        setIsLogged(false);
-        setVms(null);
-        localStorage.removeItem("hasLoggedOnce");
+        if (results.length > 0) {
+          setIsLogged(true);
+          setAllServersVMs(results);
+        } else {
+          setIsLogged(false);
+          setAllServersVMs(null);
+          localStorage.removeItem("hasLoggedOnce");
+        }
       } finally {
         if (!cancelled) setCheckingSession(false);
       }
@@ -63,93 +108,99 @@ export default function Login() {
 
     checkSession();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => (cancelled = true);
   }, [server]);
 
+  // Connexion utilisateur
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    const selected = getSelectedServers();
 
     try {
       const res = await fetch(`${API_BASE}/auth/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           username,
           password,
           realm: "pam",
-          hosts: [server]
-        }),
-        credentials: "include"
+          hosts: selected
+        })
       });
 
-      const data = await res.json();
-
-      if (data.message !== "Logged in") {
+      // Si login incorrect
+      if (!res.ok) {
         setError("Login incorrect");
         return;
       }
 
-      // Login OK → charger les VM
-      const vmRes = await fetch(
-        `${API_BASE}/server/${server}/vm`,
-        { credentials: "include" }
-      );
+      let data;
+      try {
+        // On parse le JSON proprement
+        data = await res.json();
+      } catch {
+        setError("Réponse serveur invalide");
+        return;
+      }
 
-      const vmData = await vmRes.json();
+      // Vérification du message
+      if (!data || data.message !== "Logged in") {
+        setError("Login incorrect");
+        return;
+      }
 
+      // On charge les VM
+      const results = await loadAllVMs();
       setIsLogged(true);
-      setVms(vmData);
+      setAllServersVMs(results);
 
-      // Marque qu'une session a déjà existé
+      // On garde la session
       localStorage.setItem("hasLoggedOnce", "true");
+
     } catch (err) {
-      console.error(err);
       setError("Erreur de connexion");
     }
   }
 
+  // Déconnexion
   async function handleLogout() {
-    await fetch(`${API_BASE}/auth/logout`, {
-      method: "POST",
-      credentials: "include"
-    });
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch {}
 
     setIsLogged(false);
-    setVms(null);
+    setAllServersVMs(null);
     localStorage.removeItem("hasLoggedOnce");
   }
 
-  /**
-   * Pendant la vérification de session :
-   * on évite d'afficher le login
-   */
+  // Affichage "Chargement..."
   if (checkingSession) {
+    return <div className="pageAuth"><p>Chargement...</p></div>;
+  }
+
+  // Si connecté → afficher les VM
+  if (isLogged && allServersVMs) {
     return (
-      <div className="pageAuth">
-        <p>Chargement...</p>
-      </div>
+      <>
+        {allServersVMs.map((srv) => (
+          <ListVM
+            key={srv.server}
+            server={srv.server}
+            vms={srv.vms}
+            onLogout={handleLogout}
+          />
+        ))}
+      </>
     );
   }
 
-  /**
-   * Utilisateur connecté
-   */
-  if (isLogged && vms) {
-    return (
-      <ListVM
-        server={server}
-        vms={vms}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
-  /**
-   * Page login
-   */
+  // Formulaire de connexion
   return (
     <div className="pageAuth">
       <form onSubmit={handleSubmit}>
@@ -175,11 +226,10 @@ export default function Login() {
             localStorage.setItem("server", e.target.value);
           }}
         >
-          <option value="pm-serv16">Serveur 16</option>
-          <option value="pm-serv18">Serveur 18</option>
-          <option value="pm-serv19">Serveur 19</option>
-          <option value="pm-serv20">Serveur 20</option>
-          <option value="pm-serv21">Serveur 21</option>
+          <option value="all">Tous les serveurs</option>
+          {SERVERS.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
         </select>
 
         <button type="submit">Login</button>
