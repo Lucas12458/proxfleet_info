@@ -4,9 +4,9 @@ import "../styles/userTable.css";
 
 export default function UsersTable() {
   const [users, setUsers] = useState([]);
-    const API_BASE = `${import.meta.env.VITE_BASE_PATH}api`;
-
-
+  const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
+  const API_BASE = `${BASE}api`;
+    
 
   useEffect(() => {
     fetch(`${API_BASE}/csv/read?csv_path=C%3A%5Ctmp%5Cuploads%5Cstudents_example.csv`, {

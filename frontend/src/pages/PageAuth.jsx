@@ -14,7 +14,8 @@ export default function Login() {
   const [isLogged, setIsLogged] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-    const API_BASE = `${import.meta.env.VITE_BASE_PATH}api`;
+  const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
+  const API_BASE = `${BASE}api`;
 
 
   /**
@@ -175,7 +176,6 @@ export default function Login() {
           }}
         >
           <option value="pm-serv16">Serveur 16</option>
-          <option value="pm-serv17">Serveur 17</option>
           <option value="pm-serv18">Serveur 18</option>
           <option value="pm-serv19">Serveur 19</option>
           <option value="pm-serv20">Serveur 20</option>
