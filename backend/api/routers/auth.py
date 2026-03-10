@@ -57,13 +57,20 @@ def get_current_session(session_cookie: str = Depends(api_cookie)):
 async def check_server_and_create_token(host: str, username: str,password: str) -> dict[str, dict] | None:
     
     host_url = f"{host}.usmb-tri.fr"
+    logging.debug(f"🔍 Tentative de connexion à {host_url} avec {username}")
     try:
-        await run_in_threadpool(ProxmoxAPI,host=host_url,user=username,password=password,verify_ssl=False)
+        await run_in_threadpool(
+            ProxmoxAPI,
+            host=host_url
+            ,user=username
+            ,password=password
+            ,verify_ssl=False
+            )
         
         proxmox_auth = ProxmoxAuth(proxmox_host=host_url,admin_user=admin_user,admin_password=admin_pass,target_user=username)
         
         token_data = await run_in_threadpool(proxmox_auth.create_token,privsep=0,ttl_seconds=3600)
-        
+        logging.info(f"✅ Connexion réussie à {host_url}")
         return {host: token_data}
 
     except Exception as e:

@@ -7,7 +7,7 @@ import os
 description = """"""
 
 APP_PATH = os.getenv("APP_PATH", "/app2")
-ENV_TYPE = os.getenv("ENV", "production")
+ENV_TYPE = os.getenv("ENV", "dev")
 
 
 app = FastAPI(
