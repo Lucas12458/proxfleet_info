@@ -102,6 +102,16 @@ async def get_vms(host:str,proxmox_manager : ProxmoxManager = Depends(get_proxmo
         raise HTTPException(status_code=500,detail="Unable to fetch VMs")
     
     
+@router.get("/server/{host}/vm-Names")
+async def get_vms(host:str,proxmox_manager : ProxmoxManager = Depends(get_proxmox_manager)):
+    try:
+        vms = proxmox_manager.list_vms()
+        return list(vms[0].keys())
+    except Exception as e:
+        logging.error(f"Error fetching VMs from {host}: {e}")
+        raise HTTPException(status_code=500,detail="Unable to fetch VMs")
+    
+    
 
 
 @router.get("/server/{host}/vm/{vmid}")
