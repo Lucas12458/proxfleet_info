@@ -15,11 +15,25 @@ export default function PageAuth() {
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
-  const SERVERS = [
+  /*const SERVERS = [
     "pm-serv16", "pm-serv17", "pm-serv18",
     "pm-serv19", "pm-serv20", "pm-serv21"
   ];
+  */
+  // Remplace le state SERVERS hardcodé par :
+  const [SERVERS, setSERVERS] = useState([]);
 
+  useEffect(() => {
+    async function fetchServers() {
+      try {
+        const res = await fetch(`${API_BASE}/servers`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setSERVERS(data.map(s => s.host));
+      } catch {}
+    }
+    fetchServers();
+  }, []);
   // Prend server en paramètre pour éviter les problèmes de closure
   async function loadAllVMs(selectedServer) {
     const selected = selectedServer === "all" ? SERVERS : [selectedServer];
