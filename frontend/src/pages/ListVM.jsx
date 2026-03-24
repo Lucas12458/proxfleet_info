@@ -1,7 +1,7 @@
 import "../styles/listvm.css";
 import { useState, useEffect } from "react";
 
-export default function ListVM({ server, vms, onLogout, allServersData, isMulti }) {
+export default function ListVM({ server, vms, onLogout, allServersData, isMulti, onRefresh,addLog }) {
   const header = isMulti
     ? ["server", "vmid", "name", "status", "actions"]
     : ["vmid", "name", "status", "actions"];
@@ -14,11 +14,9 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
   const [vmName, setVmName] = useState("");
   const [showInput, setShowInput] = useState(false);
 
-  // Serveurs disponibles chargés depuis l'API
   const [availableServers, setAvailableServers] = useState([]);
   const [createServer, setCreateServer] = useState(server || "");
 
-  // Charge la liste des serveurs disponibles depuis /api/servers
   useEffect(() => {
     async function fetchServers() {
       try {
@@ -27,13 +25,10 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
         const data = await res.json();
         const hosts = data.map(s => s.host);
         setAvailableServers(hosts);
-        // Si pas de serveur sélectionné, prendre le premier disponible
         if (!server && hosts.length > 0) {
           setCreateServer(hosts[0]);
         }
-      } catch {
-        // Silencieux, on garde la liste vide
-      }
+      } catch {}
     }
     fetchServers();
   }, []);
@@ -53,34 +48,10 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
     setVmList(buildList(isMulti ? allServersData : vms));
   }, [vms, allServersData, isMulti]);
 
-  // Recharge les VM — avec try/catch pour éviter la page blanche
-  async function reloadVMs(targetServer) {
-    const srv = targetServer || server;
-    if (!srv) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/server/${srv}/vm`, { credentials: "include" });
-      if (!res.ok) return; // serveur indispo → on ignore silencieusement
-
-      const data = await res.json();
-
-      if (isMulti) {
-        setVmList(prev =>
-          prev
-            .filter(vm => vm.server !== srv)
-            .concat(data.map(vm => ({ ...vm, server: srv })))
-        );
-      } else {
-        setVmList(data);
-      }
-    } catch {
-      // Serveur indispo → pas de crash, page reste affichée
-    }
-  }
-
+  // --- ACTIONS ---
+  
   async function createVMConfirm() {
     if (!vmName.trim()) return alert("Entre un nom de VM");
-
     const targetServer = isMulti ? createServer : server;
     if (!targetServer) return alert("Aucun serveur disponible");
 
@@ -106,7 +77,8 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
       }
 
       await response.json();
-      setTimeout(() => reloadVMs(targetServer), 4000);
+      // On utilise onRefresh du parent après un délai
+      setTimeout(() => onRefresh(), 4000);
     } catch {
       alert("Erreur réseau lors de la création de la VM");
     }
@@ -117,8 +89,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
 
   async function vmAction(vmid, action, targetServer) {
     const srv = targetServer || server;
-    if (!srv) return;
-
     try {
       const res = await fetch(`${API_BASE}/server/${srv}/vm/${vmid}/action`, {
         method: "POST",
@@ -126,17 +96,53 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
         credentials: "include",
         body: JSON.stringify({ action })
       });
-
-      if (!res.ok) {
-        alert(`Action impossible : serveur ${srv} indisponible`);
-        return;
+  
+      const data = await res.json(); // [true, "UPID..."]
+  
+      if (res.ok && data[0] === true) {
+        const upid = data[1];
+        addLog(`[Action] ${action} lancée sur VM ${vmid}`, "info");
+  
+        // On commence à surveiller le statut de cet UPID
+        checkTaskStatus(srv, upid, action, vmid);
+      } else {
+        addLog(`Erreur : ${data[1] || "Action refusée"}`, "error");
       }
-
-      setTimeout(() => reloadVMs(srv), 2000);
-    } catch {
-      alert("Erreur réseau");
+    } catch (err) {
+      addLog(`Erreur réseau : ${err.message}`, "error");
     }
   }
+  
+  // Nouvelle fonction pour interroger le statut
+  async function checkTaskStatus(srv, upid, action, vmid) {
+    try {
+      // On appelle ta route GET /server/{host}/task/status?upid=...
+      const res = await fetch(`${API_BASE}/server/${srv}/task/status?upid=${upid}`, {
+        credentials: "include"
+      });
+      
+      if (!res.ok) return;
+      const task = await res.json(); // Reçoit l'objet de statut de Proxmox
+      console.log("Réponse API Status:", task);
+      
+      if (task[0] === "stopped") {
+        const resultColor = task[1] === "OK" ? "success" : "error";
+        addLog(`[Proxmox] Fin de ${action} sur VM ${vmid} : ${task[1]}`, resultColor);
+        
+        // Une fois fini, on rafraîchit la liste des VMs
+        onRefresh();
+        console.log("tache fini");
+      } else {
+        console.log("tache en cours");
+        // Si c'est toujours "running", on recommence dans 1 seconde
+        setTimeout(() => checkTaskStatus(srv, upid, action, vmid), 1000);
+      }
+    } catch (err) {
+      console.error("Erreur suivi tâche:", err);
+    }
+  }
+
+  // --- TRI ET FILTRE ---
 
   function handleHeaderClick(h) {
     setSort({
@@ -176,7 +182,11 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
       </div>
 
       <div className="toolbar-row">
-        <div className="create-side">
+        <div className="create-side" style={{ display: 'flex', gap: '10px' }}>
+          <button className="create-btn" onClick={onRefresh} style={{ backgroundColor: '#2196F3' }}>
+            🔄 Refresh
+          </button>
+
           {!showInput && (
             <button className="create-btn" onClick={() => setShowInput(true)}>
               Créer VM
@@ -241,6 +251,7 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti 
                 <td className="vm-actions">
                   <button className="btn-start" onClick={() => vmAction(vm.vmid, "start", vm.server)}>Start</button>
                   <button className="btn-stop" onClick={() => vmAction(vm.vmid, "stop", vm.server)}>Stop</button>
+                  <button className="btn-shutdown" onClick={() => vmAction(vm.vmid, "shutdown", vm.server)}>Shutdown</button>
                   <button className="btn-delete" onClick={() => vmAction(vm.vmid, "delete", vm.server)}>Delete</button>
                 </td>
               </tr>
