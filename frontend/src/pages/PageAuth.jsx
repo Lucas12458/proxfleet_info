@@ -22,6 +22,7 @@ export default function PageAuth() {
   */
   // Dans PageAuth.jsx
   const [logs, setLogs] = useState([]);
+  const [logsOpen, setLogsOpen] = useState(true); 
 
   const addLog = (message, type = "info") => {
     const newLog = {
@@ -212,19 +213,30 @@ export default function PageAuth() {
         <div className="console-container">
           <div className="console-header">
             <span>Logs d'activités Proxmox</span>
-            <button onClick={() => setLogs([])} className="clear-logs">Effacer</button>
+
+            <div className="console-actions">
+              <button onClick={() => setLogsOpen(!logsOpen)} className="toggle-logs">
+                {logsOpen ? "Réduire ▼" : "Afficher ▲"}
+              </button>
+              <button onClick={() => setLogs([])} className="clear-logs">
+                Effacer
+              </button>
+            </div>
           </div>
-          <div className="console-body">
-            {logs.length === 0 && (
-              <p className="empty-log">En attente d'actions sur les serveurs...</p>
-            )}
-            {logs.map((log) => (
-              <div key={log.id} className={`log-entry ${log.type}`}>
-                <span className="log-time">[{log.time}]</span> {log.message}
-              </div>
-            ))}
-          </div>
+          {logsOpen && (
+            <div className="console-body">
+              {logs.length === 0 && (
+                <p className="empty-log">En attente d'actions sur les serveurs...</p>
+              )}
+              {logs.map((log) => (
+                <div key={log.id} className={`log-entry ${log.type}`}>
+                  <span className="log-time">[{log.time}]</span> {log.message}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
       </div>
     );
   }

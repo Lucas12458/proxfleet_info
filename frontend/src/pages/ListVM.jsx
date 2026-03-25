@@ -182,8 +182,8 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
       </div>
 
       <div className="toolbar-row">
-        <div className="create-side" style={{ display: 'flex', gap: '10px' }}>
-          <button className="create-btn" onClick={onRefresh} style={{ backgroundColor: '#2196F3' }}>
+        <div className="create-side">
+          <button className="create-btn" onClick={onRefresh}>
             🔄 Refresh
           </button>
 
