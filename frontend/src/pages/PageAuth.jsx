@@ -15,14 +15,8 @@ export default function PageAuth() {
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
-  /*const SERVERS = [
-    "pm-serv16", "pm-serv17", "pm-serv18",
-    "pm-serv19", "pm-serv20", "pm-serv21"
-  ];
-  */
-  // Dans PageAuth.jsx
   const [logs, setLogs] = useState([]);
-  const [logsOpen, setLogsOpen] = useState(true); 
+  const [logsOpen, setLogsOpen] = useState(true);
 
   const addLog = (message, type = "info") => {
     const newLog = {
@@ -31,12 +25,12 @@ export default function PageAuth() {
       message,
       type
     };
-    setLogs(prev => [newLog, ...prev].slice(0, 50)); // On garde les 50 derniers
+    setLogs(prev => [newLog, ...prev].slice(0, 50));
   };
 
-  // Remplace le state SERVERS hardcodé par :
   const [SERVERS, setSERVERS] = useState([]);
 
+  // 🔹 Charger les serveurs
   useEffect(() => {
     async function fetchServers() {
       try {
@@ -48,7 +42,8 @@ export default function PageAuth() {
     }
     fetchServers();
   }, []);
-  // Prend server en paramètre pour éviter les problèmes de closure
+
+  // 🔹 Charger les VMs
   async function loadAllVMs(selectedServer) {
     const selected = selectedServer === "all" ? SERVERS : [selectedServer];
     const results = [];
@@ -58,9 +53,12 @@ export default function PageAuth() {
         const res = await fetch(`${API_BASE}/server/${srv}/vm`, {
           credentials: "include"
         });
+
         if (!res.ok) continue;
+
         const data = await res.json();
         results.push({ server: srv, vms: data });
+
       } catch {
         continue;
       }
@@ -69,7 +67,7 @@ export default function PageAuth() {
     return results;
   }
 
-  // Vérifie session existante
+  // 🔥 FIX REFRESH ICI (le seul vrai fix)
   useEffect(() => {
     const hasLoggedOnce = localStorage.getItem("hasLoggedOnce");
 
@@ -81,9 +79,17 @@ export default function PageAuth() {
     let cancelled = false;
 
     async function checkSession() {
+
+      // 🔥 attendre SERVERS si "all"
+      if (server === "all" && SERVERS.length === 0) {
+        setCheckingSession(false);
+        return;
+      }
+
       setCheckingSession(true);
+
       try {
-        const results = await loadAllVMs(server); // on passe server explicitement
+        const results = await loadAllVMs(server);
         if (cancelled) return;
 
         if (results.length > 0) {
@@ -105,9 +111,12 @@ export default function PageAuth() {
     }
 
     checkSession();
-    return () => { cancelled = true; };
-  }, [server]);
 
+    return () => { cancelled = true; };
+
+  }, [server, SERVERS]);
+
+  // 🔹 LOGIN (inchangé)
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -167,24 +176,24 @@ export default function PageAuth() {
     setAllServersVMs(null);
     localStorage.removeItem("hasLoggedOnce");
   }
+
   async function refreshVMs() {
     const results = await loadAllVMs(server);
     setAllServersVMs(results);
-    console.log(allServersVMs);
   }
-  
-  // Chargement
+
+  // 🔹 Chargement
   if (checkingSession) {
     return <div className="pageAuth"><p>Chargement...</p></div>;
   }
 
-  // Connecté → affichage des VM
+  // 🔹 CONNECTÉ
   if (isLogged && allServersVMs) {
     const isMulti = server === "all";
 
     return (
       <div className="page-auth-connected">
-        {/* 1. Affichage du/des tableaux */}
+
         {isMulti ? (
           <ListVM
             server={null}
@@ -193,7 +202,7 @@ export default function PageAuth() {
             isMulti={true}
             onLogout={handleLogout}
             onRefresh={refreshVMs}
-            addLog={addLog} // Prop transmise
+            addLog={addLog}
           />
         ) : (
           allServersVMs.map((srv) => (
@@ -204,29 +213,36 @@ export default function PageAuth() {
               isMulti={false}
               onLogout={handleLogout}
               onRefresh={refreshVMs}
-              addLog={addLog} // Prop transmise
+              addLog={addLog}
             />
           ))
         )}
 
-        {/* 2. La Console (placée ici, elle est toujours visible quand connecté) */}
+        {/* SECTION CONSOLE CORRIGÉE AVEC LES CLASSES */}
         <div className="console-container">
           <div className="console-header">
             <span>Logs d'activités Proxmox</span>
 
             <div className="console-actions">
-              <button onClick={() => setLogsOpen(!logsOpen)} className="toggle-logs">
+              <button 
+                className="toggle-logs"
+                onClick={() => setLogsOpen(!logsOpen)}
+              >
                 {logsOpen ? "Réduire ▼" : "Afficher ▲"}
               </button>
-              <button onClick={() => setLogs([])} className="clear-logs">
+              <button 
+                className="clear-logs"
+                onClick={() => setLogs([])}
+              >
                 Effacer
               </button>
             </div>
           </div>
+
           {logsOpen && (
             <div className="console-body">
               {logs.length === 0 && (
-                <p className="empty-log">En attente d'actions sur les serveurs...</p>
+                <p className="empty-log">En attente d'actions...</p>
               )}
               {logs.map((log) => (
                 <div key={log.id} className={`log-entry ${log.type}`}>
@@ -236,12 +252,13 @@ export default function PageAuth() {
             </div>
           )}
         </div>
+        {/* FIN SECTION CONSOLE */}
 
       </div>
     );
   }
 
-  // Formulaire login
+  // 🔹 LOGIN
   return (
     <div className="pageAuth">
       <form onSubmit={handleSubmit}>
@@ -277,7 +294,6 @@ export default function PageAuth() {
 
         {error && <p className="error">{error}</p>}
       </form>
-
     </div>
   );
 }

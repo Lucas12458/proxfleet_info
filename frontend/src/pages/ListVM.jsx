@@ -1,7 +1,7 @@
 import "../styles/listvm.css";
 import { useState, useEffect } from "react";
 
-export default function ListVM({ server, vms, onLogout, allServersData, isMulti, onRefresh,addLog }) {
+export default function ListVM({ server, vms, onLogout, allServersData, isMulti, onRefresh, addLog }) {
   const header = isMulti
     ? ["server", "vmid", "name", "status", "actions"]
     : ["vmid", "name", "status", "actions"];
@@ -9,11 +9,12 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
+  const [filters, setFilters] = useState({});
+  const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState({ keyToSort: "name", direction: "asc" });
   const [vmName, setVmName] = useState("");
   const [showInput, setShowInput] = useState(false);
-
   const [availableServers, setAvailableServers] = useState([]);
   const [createServer, setCreateServer] = useState(server || "");
 
@@ -48,8 +49,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
     setVmList(buildList(isMulti ? allServersData : vms));
   }, [vms, allServersData, isMulti]);
 
-  // --- ACTIONS ---
-  
   async function createVMConfirm() {
     if (!vmName.trim()) return alert("Entre un nom de VM");
     const targetServer = isMulti ? createServer : server;
@@ -77,7 +76,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
       }
 
       await response.json();
-      // On utilise onRefresh du parent après un délai
       setTimeout(() => onRefresh(), 4000);
     } catch {
       alert("Erreur réseau lors de la création de la VM");
@@ -96,14 +94,12 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         credentials: "include",
         body: JSON.stringify({ action })
       });
-  
-      const data = await res.json(); // [true, "UPID..."]
-  
+
+      const data = await res.json();
+
       if (res.ok && data[0] === true) {
         const upid = data[1];
         addLog(`[Action] ${action} lancée sur VM ${vmid}`, "info");
-  
-        // On commence à surveiller le statut de cet UPID
         checkTaskStatus(srv, upid, action, vmid);
       } else {
         addLog(`Erreur : ${data[1] || "Action refusée"}`, "error");
@@ -112,37 +108,30 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
       addLog(`Erreur réseau : ${err.message}`, "error");
     }
   }
-  
-  // Nouvelle fonction pour interroger le statut
+
   async function checkTaskStatus(srv, upid, action, vmid) {
     try {
-      // On appelle ta route GET /server/{host}/task/status?upid=...
       const res = await fetch(`${API_BASE}/server/${srv}/task/status?upid=${upid}`, {
         credentials: "include"
       });
-      
+
       if (!res.ok) return;
-      const task = await res.json(); // Reçoit l'objet de statut de Proxmox
+      const task = await res.json();
       console.log("Réponse API Status:", task);
-      
+
       if (task[0] === "stopped") {
         const resultColor = task[1] === "OK" ? "success" : "error";
         addLog(`[Proxmox] Fin de ${action} sur VM ${vmid} : ${task[1]}`, resultColor);
-        
-        // Une fois fini, on rafraîchit la liste des VMs
         onRefresh();
         console.log("tache fini");
       } else {
         console.log("tache en cours");
-        // Si c'est toujours "running", on recommence dans 1 seconde
         setTimeout(() => checkTaskStatus(srv, upid, action, vmid), 1000);
       }
     } catch (err) {
       console.error("Erreur suivi tâche:", err);
     }
   }
-
-  // --- TRI ET FILTRE ---
 
   function handleHeaderClick(h) {
     setSort({
@@ -164,7 +153,15 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
   }
 
   const filtered = getSortedArray(
-    vmList.filter(vm => vm.name?.toLowerCase().includes(search.toLowerCase()))
+    vmList.filter(vm => {
+      const globalMatch = vm.name?.toLowerCase().includes(search.toLowerCase());
+      const columnMatch = header.filter(h => h !== "actions").every(h => {
+        const val = filters[h] || "";
+        if (!val) return true;
+        return String(vm[h] ?? "").toLowerCase().includes(val.toLowerCase());
+      });
+      return globalMatch && columnMatch;
+    })
   );
 
   const Arrow = ({ col }) => {
@@ -239,7 +236,35 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
                   <Arrow col={h} />
                 </th>
               ))}
+              <th style={{ width: "40px", textAlign: "center" }}>
+              <button
+                className={`filter-toggle-btn ${showFilters ? "active" : ""}`}
+                onClick={e => { e.stopPropagation(); setShowFilters(prev => !prev); }}
+                title="Filtres par colonne"
+              >
+                {showFilters ? "❌" : "🔍"}
+              </button>
+              </th>
             </tr>
+            {showFilters && (
+              <tr>
+                {header.map(h => (
+                  <th key={h} style={{ padding: "4px 8px", background: "#f0f4ff" }}>
+                    {h !== "actions" && (
+                      <input
+                        type="text"
+                        className="filter-input"
+                        placeholder="Filtrer..."
+                        value={filters[h] || ""}
+                        onChange={e => setFilters(prev => ({ ...prev, [h]: e.target.value }))}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    )}
+                  </th>
+                ))}
+                <th style={{ background: "#000000" }} />
+              </tr>
+            )}
           </thead>
           <tbody>
             {filtered.map(vm => (

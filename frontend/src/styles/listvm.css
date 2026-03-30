@@ -1,29 +1,26 @@
-/* === HEADER (TITRE + LOGOUT SUR LA MÊME LIGNE) === */
 .vm-header {
   width: 95%;
   margin: 0 auto;
   display: flex;
-  justify-content: space-between; /* titre à gauche, logout à droite */
-  align-items: center; /* empêche le titre de descendre */
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 15px;
 }
 
-/* === TITRE === */
 .vm-title {
   text-align: center;
   font-size: 32px;
   font-weight: bold;
-  margin: 0; /* IMPORTANT : empêche le titre de descendre */
-  flex: 1; /* permet au titre d'être centré même avec logout à droite */
+  margin: 0;
+  flex: 1;
 }
 
-/* === LOGOUT === */
 .logout-btn {
   padding: 10px 22px;
   background: #e74c3c;
   color: white;
   border: none;
-  border-radius: 50px; /* différent des autres boutons */
+  border-radius: 50px;
   font-size: 16px;
   font-weight: 700;
   font-family: "Segoe UI", sans-serif;
@@ -36,7 +33,6 @@
   transform: scale(1.05);
 }
 
-/* === WRAPPER POUR CENTRER LE TABLEAU === */
 .vm-table-wrapper {
   display: flex;
   justify-content: center;
@@ -46,14 +42,13 @@
 
 .vm-table {
   border-collapse: collapse;
-  width: 100%;  /* fills the wrapper */
+  width: 100%;
   background: white;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   border-radius: 6px;
   overflow: hidden;
 }
 
-/* === EN-TÊTES === */
 .vm-table th {
   background: #2d6cdf;
   color: white;
@@ -62,18 +57,15 @@
   cursor: pointer;
 }
 
-/* === CELLULES === */
 .vm-table td {
   padding: 10px 12px;
   border-bottom: 1px solid #e5e5e5;
 }
 
-/* === LIGNES ALTERNÉES === */
 .vm-table tr:nth-child(even) {
   background: #f0f4ff;
 }
 
-/* === HOVER === */
 .vm-table th svg.asc {
   width: 12px;
   margin-left: 6px;
@@ -90,20 +82,17 @@
   fill: #a0aec0;
 }
 
-
-/* === ACTIONS === */
 .vm-actions {
   display: flex;
   justify-content: space-between;
   width: 100%;
 }
 
-/* === BOUTONS === */
 .btn-start,
 .btn-stop,
 .btn-shutdown,
 .btn-delete {
-  width: 80px; /* même largeur */
+  width: 80px;
   padding: 8px 1px;
   border: none;
   border-radius: 6px;
@@ -114,46 +103,19 @@
   transition: 0.2s;
 }
 
-/* Start */
-.btn-start {
-  background: #2ecc71;
-}
-.btn-start:hover {
-  background: #27ae60;
-  transform: scale(1.05);
-}
+.btn-start { background: #2ecc71; }
+.btn-start:hover { background: #27ae60; transform: scale(1.05); }
 
-/* Stop */
-.btn-stop {
-  background: #f39c12;
-}
-.btn-stop:hover {
-  background: #d68910;
-  transform: scale(1.05);
-}
+.btn-stop { background: #f39c12; }
+.btn-stop:hover { background: #d68910; transform: scale(1.05); }
 
-/* Shutdown */
-.btn-shutdown {
-  background: #1b1305;
-}
-.btn-shutdown:hover {
-  background: #65635f;
-  transform: scale(1.05);
-}
+.btn-shutdown { background: #1b1305; }
+.btn-shutdown:hover { background: #65635f; transform: scale(1.05); }
 
-/* Delete */
-.btn-delete {
-  background: #e74c3c;
-}
-.btn-delete:hover {
-  background: #c0392b;
-  transform: scale(1.05);
-}
+.btn-delete { background: #e74c3c; }
+.btn-delete:hover { background: #c0392b; transform: scale(1.05); }
 
-/* Réduit un peu l’espace à droite */
-.vm-table td:last-child {
-  padding-right: 25px;
-}
+.vm-table td:last-child { padding-right: 25px; }
 
 .toolbar-row {
   width: 95%;
@@ -165,23 +127,12 @@
 
 .create-side {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.create-side {
-  display: flex;
   gap: 30px;
   align-items: center;
 }
 
-.create-side .create-btn:nth-child(1) {
-  order: 2; /* Refresh */
-}
-
-.create-side .create-btn:nth-child(2) {
-  order: 1; /* Créer VM */
-}
+.create-side .create-btn:nth-child(1) { order: 2; }
+.create-side .create-btn:nth-child(2) { order: 1; }
 
 .create-input {
   padding: 10px 14px;
@@ -209,25 +160,20 @@
   transform: scale(1.05);
 }
 
-
-
-th:hover svg {
-  fill: #ffffff;
-
-}
+th:hover svg { fill: #ffffff; }
 
 .search-row {
   width: 95%;
   margin: 13px auto 15px auto;
   display: flex;
-  justify-content: flex-end;  /* push to the right */
+  justify-content: flex-end;
   align-items: center;
   position: relative;
 }
 
 .search-row svg {
   position: absolute;
-  right: 12px;  /* icon inside input on the right side */
+  right: 12px;
   color: #9e9ea7;
   font-size: 14px;
   pointer-events: none;
@@ -246,21 +192,54 @@ th:hover svg {
   transition: all 0.2s ease;
 }
 
-.search-row input::placeholder {
-  color: #a0aec0;
-}
-
-.search-row input:hover {
-  border-color: #cbd5e0;
-  background-color: #fff;
-}
-
+.search-row input::placeholder { color: #a0aec0; }
+.search-row input:hover { border-color: #cbd5e0; background-color: #fff; }
 .search-row input:focus {
   border-color: #667eea;
   background-color: #fff;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
   width: 300px;
 }
+
+.filter-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  background-color: #f8fafc;
+  color: #1a202c;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.filter-input::placeholder { color: #a0aec0; }
+.filter-input:hover { border-color: #cbd5e0; background-color: #fff; }
+.filter-input:focus {
+  border-color: #667eea;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.filter-toggle-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: white;
+  transition: all 0.2s;
+}
+
+.filter-toggle-btn:hover { background: rgba(255,255,255,0.15); }
+.filter-toggle-btn.active {
+  background: rgba(255,255,255,0.25);
+  border-color: white;
+}
+
 .server-filter {
   width: 95%;
   margin: 0 auto 15px auto;
@@ -286,21 +265,10 @@ th:hover svg {
   user-select: none;
 }
 
-.server-chip:hover {
-  border-color: #2d6cdf;
-  color: #2d6cdf;
-  background: #ebf2ff;
-}
+.server-chip:hover { border-color: #2d6cdf; color: #2d6cdf; background: #ebf2ff; }
+.server-chip.active { background: #2d6cdf; border-color: #2d6cdf; color: white; }
+.server-chip input[type="checkbox"] { display: none; }
 
-.server-chip.active {
-  background: #2d6cdf;
-  border-color: #2d6cdf;
-  color: white;
-}
-
-.server-chip input[type="checkbox"] {
-  display: none;
-}
 .server-select {
   padding: 8px 12px;
   border: 1.5px solid #e2e8f0;
@@ -324,11 +292,7 @@ th:hover svg {
   white-space: nowrap;
 }
 
-.refresh-btn:hover {
-  background: #2980b9;
-  transform: scale(1.05);
-}
-
+.refresh-btn:hover { background: #2980b9; transform: scale(1.05); }
 
 .console-container {
   position: fixed;
@@ -337,7 +301,7 @@ th:hover svg {
   width: 400px;
   max-height: 200px;
   background: #1e1e1e;
-  color: #00ff00; /* Style Matrix / Console */
+  color: #00ff00;
   font-family: monospace;
   border-radius: 8px 8px 0 0;
   box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
@@ -361,21 +325,17 @@ th:hover svg {
   overflow-y: auto;
   font-size: 11px;
   flex-grow: 1;
+  max-height: 250px;
 }
-.console-actions {
-  display: flex;
-  gap: 10px;
-}
+
+.console-actions { display: flex; gap: 10px; }
 .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }
 .log-entry.info { color: #888; }
 .log-entry.error { color: #ff5555; }
 .log-entry.success { color: #55ff55; }
 .log-time { color: #888; margin-right: 5px; }
 
-.clear-logs:hover {
-  background: #d9534f;
-  transform: scale(1.05);
-}
+.clear-logs:hover { background: #d9534f; transform: scale(1.05); }
 
 .toggle-logs,
 .clear-logs {
@@ -386,18 +346,5 @@ th:hover svg {
   transition: 0.2s;
 }
 
-.toggle-logs {
-  background: #444;
-  color: white;
-}
-
-.clear-logs {
-  background: #2980b9;
-  color: white;
-}
-
-.console-body {
-  max-height: 250px;
-  overflow-y: auto;
-  padding: 10px;
-}
+.toggle-logs { background: #444; color: white; }
+.clear-logs { background: #2980b9; color: white; }
