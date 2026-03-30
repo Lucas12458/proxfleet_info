@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import "../styles/userTable.css";
 import { useCsvData } from "../hooks/useCsvData";
+import { useState, useEffect } from "react";
+
 
 export default function UsersTable() {
   const [users, setUsers] = useState([]);
