@@ -15,11 +15,39 @@ export default function PageAuth() {
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
-  const SERVERS = [
+  /*const SERVERS = [
     "pm-serv16", "pm-serv17", "pm-serv18",
     "pm-serv19", "pm-serv20", "pm-serv21"
   ];
+  */
+  // Dans PageAuth.jsx
+  const [logs, setLogs] = useState([]);
+  const [logsOpen, setLogsOpen] = useState(true); 
 
+  const addLog = (message, type = "info") => {
+    const newLog = {
+      id: Date.now(),
+      time: new Date().toLocaleTimeString(),
+      message,
+      type
+    };
+    setLogs(prev => [newLog, ...prev].slice(0, 50)); // On garde les 50 derniers
+  };
+
+  // Remplace le state SERVERS hardcodé par :
+  const [SERVERS, setSERVERS] = useState([]);
+
+  useEffect(() => {
+    async function fetchServers() {
+      try {
+        const res = await fetch(`${API_BASE}/servers`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setSERVERS(data.map(s => s.host));
+      } catch {}
+    }
+    fetchServers();
+  }, []);
   // Prend server en paramètre pour éviter les problèmes de closure
   async function loadAllVMs(selectedServer) {
     const selected = selectedServer === "all" ? SERVERS : [selectedServer];
@@ -139,7 +167,12 @@ export default function PageAuth() {
     setAllServersVMs(null);
     localStorage.removeItem("hasLoggedOnce");
   }
-
+  async function refreshVMs() {
+    const results = await loadAllVMs(server);
+    setAllServersVMs(results);
+    console.log(allServersVMs);
+  }
+  
   // Chargement
   if (checkingSession) {
     return <div className="pageAuth"><p>Chargement...</p></div>;
@@ -149,26 +182,62 @@ export default function PageAuth() {
   if (isLogged && allServersVMs) {
     const isMulti = server === "all";
 
-    return isMulti ? (
-      <ListVM
-        server={null}
-        vms={[]}
-        allServersData={allServersVMs}
-        isMulti={true}
-        onLogout={handleLogout}
-      />
-    ) : (
-      <>
-        {allServersVMs.map((srv) => (
+    return (
+      <div className="page-auth-connected">
+        {/* 1. Affichage du/des tableaux */}
+        {isMulti ? (
           <ListVM
-            key={srv.server}
-            server={srv.server}
-            vms={srv.vms}
-            isMulti={false}
+            server={null}
+            vms={[]}
+            allServersData={allServersVMs}
+            isMulti={true}
             onLogout={handleLogout}
+            onRefresh={refreshVMs}
+            addLog={addLog} // Prop transmise
           />
-        ))}
-      </>
+        ) : (
+          allServersVMs.map((srv) => (
+            <ListVM
+              key={srv.server}
+              server={srv.server}
+              vms={srv.vms}
+              isMulti={false}
+              onLogout={handleLogout}
+              onRefresh={refreshVMs}
+              addLog={addLog} // Prop transmise
+            />
+          ))
+        )}
+
+        {/* 2. La Console (placée ici, elle est toujours visible quand connecté) */}
+        <div className="console-container">
+          <div className="console-header">
+            <span>Logs d'activités Proxmox</span>
+
+            <div className="console-actions">
+              <button onClick={() => setLogsOpen(!logsOpen)} className="toggle-logs">
+                {logsOpen ? "Réduire ▼" : "Afficher ▲"}
+              </button>
+              <button onClick={() => setLogs([])} className="clear-logs">
+                Effacer
+              </button>
+            </div>
+          </div>
+          {logsOpen && (
+            <div className="console-body">
+              {logs.length === 0 && (
+                <p className="empty-log">En attente d'actions sur les serveurs...</p>
+              )}
+              {logs.map((log) => (
+                <div key={log.id} className={`log-entry ${log.type}`}>
+                  <span className="log-time">[{log.time}]</span> {log.message}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
     );
   }
 
@@ -208,6 +277,7 @@ export default function PageAuth() {
 
         {error && <p className="error">{error}</p>}
       </form>
+
     </div>
   );
 }

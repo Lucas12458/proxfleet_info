@@ -18,7 +18,7 @@ class CSVWrite(BaseModel):
 
 logging.basicConfig(level=logging.DEBUG)
 
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "C:/tmp/uploads"))
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/data"))
 
 ALLOWED_TYPES = {
     "text/csv",
@@ -28,10 +28,11 @@ ALLOWED_TYPES = {
 
 
 def get_proxmox_csv(csv_path: str) -> ProxmoxCSV:
-    file_path = UPLOAD_DIR / csv_path
+    file_path = Path(csv_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="CSV not found")
     return ProxmoxCSV(csv_path=file_path)
+
 
 
 def parse_csv(proxmox_csv: ProxmoxCSV = Depends(get_proxmox_csv)):
@@ -190,12 +191,3 @@ async def get_assignments(csv_id: str):
     return parse_csv(proxmox_csv)
 
 
-@router.get("/csv/filenames")
-async def list_csv_files():
-    try:
-        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        files = [f.name for f in UPLOAD_DIR.iterdir() if f.is_file() and f.suffix == ".csv"]
-        return {"filenames": files}
-    except Exception as e:
-        logging.error("Failed to list CSV files")
-        raise HTTPException(status_code=500, detail="Unable to list files")
