@@ -13,8 +13,9 @@ export default function UsersTable() {
 
   return (
     <div className="userTable">
-      <Link to="/auth">Page auth</Link>
-      <Link to="/files">FileNames</Link>
+      <div className="top-bar">
+        <Link to="/auth" className="auth-link-btn">Page auth</Link>
+      </div>
 
       <div className="layout">
         <aside className="files-sidebar">

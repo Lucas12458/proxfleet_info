@@ -177,3 +177,23 @@
   font-weight: bold;
   color: #1a3d7c;
 }
+.auth-link-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #2d6cdf;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.auth-link-btn:hover {
+  background: #1a55c8;
+}
+.top-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
