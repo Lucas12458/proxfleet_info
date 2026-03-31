@@ -18,7 +18,7 @@ export default function UsersTable() {
       .then(data => setUsers(data.data))
       .catch(err => console.error(err));
   }, []);
-  const { filenames, selectedFile, fileData, headers, loading, loadFile, deleteFile, uploadFile } = useCsvData();
+  const { filenames, selectedFile, fileData, headers, loading, loadFile, deleteFile, uploadFile } = useCsvData(API_BASE);
 
   const handleUpload = (e) => {
     const file = e.target.files[0];
