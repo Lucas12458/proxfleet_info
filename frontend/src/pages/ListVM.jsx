@@ -1,5 +1,6 @@
 import "../styles/listvm.css";
 import { useState, useEffect } from "react";
+import { ClipLoader } from "react-spinners";
 
 export default function ListVM({ server, vms, onLogout, allServersData, isMulti, onRefresh, addLog }) {
   const header = isMulti
@@ -17,6 +18,9 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
   const [showInput, setShowInput] = useState(false);
   const [availableServers, setAvailableServers] = useState([]);
   const [createServer, setCreateServer] = useState(server || "");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // On stocke les clés sous la forme "vmid-action" ou "server-vmid-action"
+ const [actionLoading, setActionLoading] = useState({});
 
   useEffect(() => {
     async function fetchServers() {
@@ -87,6 +91,9 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
 
   async function vmAction(vmid, action, targetServer) {
     const srv = targetServer || server;
+    const actionKey = `${srv}-${vmid}-${action}`; // Clé unique
+
+    setActionLoading(prev => ({ ...prev, [actionKey]: true }));
     try {
       const res = await fetch(`${API_BASE}/server/${srv}/vm/${vmid}/action`, {
         method: "POST",
@@ -103,25 +110,46 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         checkTaskStatus(srv, upid, action, vmid);
       } else {
         addLog(`Erreur : ${data[1] || "Action refusée"}`, "error");
+        setActionLoading(prev => {
+        const newState = { ...prev };
+        delete newState[actionKey];
+        return newState;
+      });
       }
     } catch (err) {
       addLog(`Erreur réseau : ${err.message}`, "error");
+      setActionLoading(prev => {
+      const newState = { ...prev };
+      delete newState[actionKey];
+      return newState;
+    });
     }
   }
 
   async function checkTaskStatus(srv, upid, action, vmid) {
+    const actionKey = `${srv}-${vmid}-${action}`;
     try {
       const res = await fetch(`${API_BASE}/server/${srv}/task/status?upid=${upid}`, {
         credentials: "include"
       });
 
-      if (!res.ok) return;
+      if (!res.ok){
+        setActionLoading(prev => { const n = {...prev}; delete n[actionKey]; return n; });
+        return;
+      }
+      
       const task = await res.json();
       console.log("Réponse API Status:", task);
 
       if (task[0] === "stopped") {
         const resultColor = task[1] === "OK" ? "success" : "error";
         addLog(`[Proxmox] Fin de ${action} sur VM ${vmid} : ${task[1]}`, resultColor);
+        setActionLoading(prev => {
+        const newState = { ...prev };
+        delete newState[actionKey];
+        return newState;
+      })
+        
         onRefresh();
         console.log("tache fini");
       } else {
@@ -129,6 +157,7 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         setTimeout(() => checkTaskStatus(srv, upid, action, vmid), 1000);
       }
     } catch (err) {
+      setActionLoading(prev => { const n = {...prev}; delete n[actionKey]; return n; });
       console.error("Erreur suivi tâche:", err);
     }
   }
@@ -164,6 +193,19 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
     })
   );
 
+  const handleLocalLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      // On attend que la fonction de déconnexion (passée en prop) se termine
+      await onLogout();
+    } catch (err) {
+      console.error("Erreur déconnexion:", err);
+      setIsLoggingOut(false);
+    }
+    // Note : On ne met pas forcément setIsLoggingOut(false) dans un 'finally' ici 
+    // car si le logout réussit, le composant va être démonté (redirection).
+  };
+
   const Arrow = ({ col }) => {
     if (sort.keyToSort !== col) return null;
     return <span style={{ marginLeft: 4 }}>{sort.direction === "asc" ? "▲" : "▼"}</span>;
@@ -175,7 +217,12 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         <h2 className="vm-title">
           {isMulti ? "VMs — Tous les serveurs" : `VMs du serveur ${server}`}
         </h2>
-        <button className="logout-btn" onClick={onLogout}>Logout</button>
+        <button onClick={handleLocalLogout} disabled={isLoggingOut} className="logout-btn">
+        {isLoggingOut ? (<><ClipLoader color="#ffffff" size={15} />
+        <span style={{ marginLeft: "8px" }}>Déconnexion</span></>
+        ) : ("Déconnexion"
+        )}
+        </button>
       </div>
 
       <div className="toolbar-row">
@@ -273,11 +320,20 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
                 <td>{vm.vmid}</td>
                 <td>{vm.name}</td>
                 <td>{vm.status}</td>
-                <td className="vm-actions">
-                  <button className="btn-start" onClick={() => vmAction(vm.vmid, "start", vm.server)}>Start</button>
-                  <button className="btn-stop" onClick={() => vmAction(vm.vmid, "stop", vm.server)}>Stop</button>
-                  <button className="btn-shutdown" onClick={() => vmAction(vm.vmid, "shutdown", vm.server)}>Shutdown</button>
-                  <button className="btn-delete" onClick={() => vmAction(vm.vmid, "delete", vm.server)}>Delete</button>
+               <td className="vm-actions">
+                {["start", "stop", "shutdown", "delete"].map((action) => {
+                  const srv = vm.server || server;
+                  const actionKey = `${srv}-${vm.vmid}-${action}`;
+                  const isLoading = actionLoading[actionKey];
+
+                  return (
+                      <button key={action} className={`btn-${action}`} onClick={() => vmAction(vm.vmid, action, vm.server)}
+                      disabled={isLoading || Object.keys(actionLoading).some(key => key.startsWith(`${srv}-${vm.vmid}`))}
+                      >
+                      {isLoading ? (<ClipLoader color="#ffffff" size={15} />) : (action.charAt(0).toUpperCase() + action.slice(1))}
+                      </button>
+                      );
+                  })}
                 </td>
               </tr>
             ))}

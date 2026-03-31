@@ -14,6 +14,7 @@ class ProxmoxManager:
         token_value: API token secret (required if use_token=True)
         verify_ssl: verify SSL certificates (default: True)
         """
+        self._node_name = None # On prépare une variable vide
         if use_token:
             if not token_name or not token_value:
                 logging.error("Token authentication requires both 'token_name' and 'token_value'")
@@ -31,12 +32,23 @@ class ProxmoxManager:
             logging.debug(f"Connecting to {proxmox_host} using password authentication (user: {proxmox_user})")
             self.proxmox = ProxmoxAPI(proxmox_host, user=proxmox_user, password=proxmox_password, verify_ssl=verify_ssl)
 
+    
+
+    def get_node_name(self):
+        """Récupère le nom du nœud une seule fois et le stocke."""
+        if not self._node_name:
+            # Premier appel : on interroge le serveur
+            nodes = self.proxmox.nodes.get()
+            if nodes:
+                self._node_name = nodes[0]["node"]
+        return self._node_name
+    
     def list_vms(self):
         """
         List all VMs on the Proxmox server.
         Each server has only one node.
         """
-        node = self.proxmox.nodes.get()[0]["node"]
+        node = self.get_node_name()
         return self.proxmox.nodes(node).qemu.get()
 
     def list_users(self):

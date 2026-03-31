@@ -71,3 +71,14 @@
     color: white;
   }
   
+  .spinner-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px; /* Ou la hauteur de ta zone de contenu */
+  width: 100%;
+  gap: 20px;
+  color: #666;
+  font-style: italic;
+}

@@ -39,7 +39,9 @@ class ProxmoxVM:
             return True, upid
         except Exception as e:
             logging.error(f"Unable to start VM {self.vmid}: {e}")
-            return False, None
+            raise RuntimeError(f"Starting VM {self.vmid} failed : {e}")
+
+            
 
     def shutdown(self):
         """
@@ -54,7 +56,7 @@ class ProxmoxVM:
             return True, upid
         except Exception as e:
             logging.error(f"Unable to shutdown VM {self.vmid}: {e}")
-            return False, None
+            raise RuntimeError(f"Shutdown VM {self.vmid} failed : {e}")
 
     def stop(self):
         """
@@ -69,7 +71,8 @@ class ProxmoxVM:
             return True, upid
         except Exception as e:
             logging.error(f"Unable to stop VM {self.vmid}: {e}")
-            return False, None
+            raise RuntimeError(f"Stopping VM {self.vmid} failed : {e}")
+            
 
     def reboot(self):
         """
@@ -84,6 +87,7 @@ class ProxmoxVM:
             return True, upid
         except Exception as e:
             logging.error(f"Unable to reboot VM {self.vmid}: {e}")
+            raise RuntimeError(f"Rebooting VM {self.vmid} failed : {e}")
             return False, None
 
     def delete(self):
@@ -99,6 +103,7 @@ class ProxmoxVM:
             return True, upid
         except Exception as e:
             logging.error(f"Unable to delete VM {self.vmid}: {e}")
+            raise RuntimeError(f"Deleting VM {self.vmid} failed : {e}")
             return False, None
 
     def search_name(self, vm_name: str | None = None, template: bool = False):
@@ -116,7 +121,8 @@ class ProxmoxVM:
                 if template and not vm.get("template"):
                     continue
                 return True, vm.get("vmid")
-        return False, None
+        raise RuntimeError(f'Unable to find VM {target_name}')
+    
 
     def search_vmid(self, vm_vmid: int | None = None, template: bool = False):
         """
@@ -147,7 +153,7 @@ class ProxmoxVM:
             return self.manager.proxmox.nodes(node).qemu(self.vmid).status.current.get().get("status")
         except Exception as e:
             logging.error(f"Unable to retrieve status for VM {self.vmid}: {e}")
-            return "unknown"
+            raise RuntimeError(f"Unable to fetch VM {self.vmid}'s status : {e}")
 
     def status_agent(self):
         """
@@ -165,7 +171,7 @@ class ProxmoxVM:
                 return False
         except Exception as e:
             logging.error(f"Unable to retrieve agent status for VM {self.vmid}: {e}")
-            return "unknown"
+            raise RuntimeError(f"Unable to check if QEMU Agent is enable for VM {self.vmid} : {e}")
 
     def ping_agent(self):
         """
@@ -180,7 +186,7 @@ class ProxmoxVM:
             return True
         except Exception as e:
             logging.error(f"Unable to ping agent for VM {self.vmid}: {e}")
-            return False
+            raise RuntimeError(f"Unable to ping the QEMU Agent for VM {self.vmid} : {e}")
 
     def address(self, addr_type=None):
         """
@@ -197,7 +203,7 @@ class ProxmoxVM:
             interfaces = self.manager.proxmox.nodes(node).qemu(self.vmid).agent("network-get-interfaces").get().get("result", [])
         except Exception as e:
             logging.error(f"QEMU agent is not responding for VM {self.vmid}: {e}")
-            return {}
+            raise RuntimeError(f"Unable to get the network interfaces for VM {self.vmid} : {e}")
 
         result = {}
         for interface in interfaces:
@@ -232,7 +238,7 @@ class ProxmoxVM:
         interfaces = self.address("ipv4")
         if not interfaces:
             logging.error(f"No network interfaces detected for VM {self.vmid}.")
-            return ""
+            raise RuntimeError(f)
 
         for subnet in subnets:
             for _, info in interfaces.items():

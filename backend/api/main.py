@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,Request
 from api.routers import manager,vms,users,files,auth
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from api.exceptions.exceptions import ProxmoxResourceNotFoundError, ProxmoxConnectionError,ProxmoxUnauthorizedError,ProxmoxInvalidTokenError
 from pathlib import Path
 import os
+import logging
 
 description = """"""
 
@@ -39,3 +42,33 @@ app.include_router(vms.router)
 app.include_router(users.router)
 app.include_router(files.router)
 app.include_router(auth.router)
+
+@app.exception_handler(ProxmoxResourceNotFoundError)
+async def resource_not_found_handler(request, exc):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+@app.exception_handler(ProxmoxConnectionError)
+async def connection_error_handler(request, exc):
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+@app.exception_handler(ProxmoxUnauthorizedError)
+async def unauthorized_handler(request: Request, exc: ProxmoxUnauthorizedError):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": f"Access denied to host {exc.host} for user {exc.user}"}
+    )
+
+@app.exception_handler(ProxmoxInvalidTokenError)
+async def invalid_token_handler(request: Request, exc: ProxmoxInvalidTokenError):
+    return JSONResponse(
+        status_code=502,
+        content={"detail": f"Authentication data for {exc.host} is corrupted."}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logging.critical(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"message": "An unexpected server error occurred."}
+    )

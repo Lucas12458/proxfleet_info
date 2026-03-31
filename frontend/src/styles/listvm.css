@@ -26,6 +26,15 @@
   font-family: "Segoe UI", sans-serif;
   cursor: pointer;
   transition: 0.2s;
+  width: 180px; 
+  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  
+  white-space: nowrap;
+  
+  transition: all 0.2s ease;
 }
 
 .logout-btn:hover {

@@ -4,6 +4,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.security import APIKeyCookie
 from proxmoxer import ProxmoxAPI
 from proxfleet.proxmox_authentication import ProxmoxAuth
+from api.exceptions.exceptions import (
+    ProxmoxUnauthorizedError, 
+    ProxmoxInvalidTokenError, 
+    ProxfleetError
+)
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from pathlib import Path
@@ -40,37 +45,38 @@ api_cookie = APIKeyCookie(name="session_cookie")
 
 
 def get_current_session(session_cookie: str = Depends(api_cookie)):
+    """
+    Validate the session cookie and return the session data.
+
+    Check if the cookie exists, if the session is still in memory, 
+    and if it hasn't expired yet.
+    """
     if not session_cookie:
-        raise HTTPException(status_code=401,detail="Not authenticated")
+        raise ProxmoxUnauthorizedError(host="N/A", user="Anonymous", reason="No session cookie provided")
 
     session = SESSIONS.get(session_cookie)
     if not session:
-        raise HTTPException(status_code=401,detail="Not authenticated")
+        raise ProxmoxUnauthorizedError(host="N/A", user="Unknown", reason="Session not found or expired")
 
     if session["expires_at"] < time.time():
         del SESSIONS[session_cookie]
-        raise HTTPException(status_code=401, detail="Session expired")
+        raise ProxmoxUnauthorizedError(host="N/A", user=session.get("user"), reason="Session expired")
 
     return session
 
 
 async def check_server_and_create_token(host: str, username: str,password: str) -> dict[str, dict] | None:
-    
+    """
+    Attempt to connect to a Proxmox host and generate a scoped API token.
+    """
     host_url = f"{host}.usmb-tri.fr"
-    logging.debug(f"🔍 Tentative de connexion à {host_url} avec {username}")
     try:
-        await run_in_threadpool(
-            ProxmoxAPI,
-            host=host_url
-            ,user=username
-            ,password=password
-            ,verify_ssl=False
-            )
+        await run_in_threadpool(ProxmoxAPI,host=host_url,user=username,password=password,verify_ssl=False)
         
         proxmox_auth = ProxmoxAuth(proxmox_host=host_url,admin_user=admin_user,admin_password=admin_pass,target_user=username)
         
         token_data = await run_in_threadpool(proxmox_auth.create_token,privsep=0,ttl_seconds=3600)
-        logging.info(f"✅ Connexion réussie à {host_url}")
+        
         return {host: token_data}
 
     except Exception as e:
@@ -79,6 +85,10 @@ async def check_server_and_create_token(host: str, username: str,password: str) 
 
 @router.post("/auth/token")
 async def login_for_access_token(data: LoginRequest):
+    """
+    Main login endpoint. Aggregates tokens from multiple Proxmox hosts 
+    and creates a local unified session.
+    """
     user = f"{data.username}@{data.realm}"
     password = data.password
     hosts_list = data.hosts
@@ -93,7 +103,8 @@ async def login_for_access_token(data: LoginRequest):
                 server_tokens[host] = token_data
 
     if not server_tokens:
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
+        failed_hosts = ", ".join(data.hosts)
+        raise ProxmoxUnauthorizedError(host=failed_hosts, user=user, reason="Invalid credentials or all hosts unreachable")
 
     
     session_id = str(uuid.uuid4())
@@ -105,7 +116,7 @@ async def login_for_access_token(data: LoginRequest):
 
    
     response = JSONResponse({
-        "message": "Logged in",
+        "message": "Successfully authenticated",
         "servers": list(server_tokens.keys())
     })
     response.set_cookie(
@@ -119,14 +130,10 @@ async def login_for_access_token(data: LoginRequest):
 
 
 @router.post("/auth/logout")
-async def logout(response: Response,session_cookie: str = Depends(api_cookie)):
-    if not session_cookie:
-        raise HTTPException(status_code=401,detail="Not authenticated")
-
-    session = SESSIONS.get(session_cookie)
-    
-    if not session:
-        raise HTTPException(status_code=401,detail="Not authenticated")
+async def logout(response: Response,session: dict = Depends(get_current_session),session_cookie: str = Depends(api_cookie)):
+    """
+    Perform a full logout by deleting remote tokens and clearing local session.
+    """
     
     servers = session.get("servers", {})
     user = session.get("user")
@@ -149,7 +156,7 @@ async def logout(response: Response,session_cookie: str = Depends(api_cookie)):
     SESSIONS.pop(session_cookie, None)
     response.delete_cookie("session_cookie")
     
-    return {"ok": True}
+    return {"ok": True, "message": "Logged out successfully"}
 
 
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PulseLoader } from "react-spinners";
 import ListVM from "./ListVM.jsx";
 import "../styles/style_auth.css";
 
@@ -10,6 +11,8 @@ export default function PageAuth() {
   const [error, setError] = useState("");
   const [allServersVMs, setAllServersVMs] = useState(null);
   const [isLogged, setIsLogged] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
@@ -30,7 +33,7 @@ export default function PageAuth() {
 
   const [SERVERS, setSERVERS] = useState([]);
 
-  // 🔹 Charger les serveurs
+  // Charger les serveurs
   useEffect(() => {
     async function fetchServers() {
       try {
@@ -43,31 +46,31 @@ export default function PageAuth() {
     fetchServers();
   }, []);
 
-  // 🔹 Charger les VMs
+  // Charger les VMs
   async function loadAllVMs(selectedServer) {
     const selected = selectedServer === "all" ? SERVERS : [selectedServer];
     const results = [];
 
     for (const srv of selected) {
-      try {
-        const res = await fetch(`${API_BASE}/server/${srv}/vm`, {
-          credentials: "include"
-        });
-
+    try {
+      const res = await fetch(`${API_BASE}/server/${srv}/vm`, {
+        credentials: "include"
+      });
+      
         if (!res.ok) continue;
-
-        const data = await res.json();
+      
+      const data = await res.json();
         results.push({ server: srv, vms: data });
 
       } catch {
         continue;
-      }
+    }
     }
 
     return results;
-  }
+}
 
-  // 🔥 FIX REFRESH ICI (le seul vrai fix)
+  // FIX REFRESH ICI (le seul vrai fix)
   useEffect(() => {
     const hasLoggedOnce = localStorage.getItem("hasLoggedOnce");
 
@@ -80,7 +83,7 @@ export default function PageAuth() {
 
     async function checkSession() {
 
-      // 🔥 attendre SERVERS si "all"
+      // attendre SERVERS si "all"
       if (server === "all" && SERVERS.length === 0) {
         setCheckingSession(false);
         return;
@@ -116,9 +119,10 @@ export default function PageAuth() {
 
   }, [server, SERVERS]);
 
-  // 🔹 LOGIN (inchangé)
+  // LOGIN (inchangé)
   async function handleSubmit(e) {
     e.preventDefault();
+    setIsLoggingIn(true); 
     setError("");
 
     const selected = server === "all" ? SERVERS : [server];
@@ -135,10 +139,12 @@ export default function PageAuth() {
           hosts: selected
         })
       });
-
+      
       if (!res.ok) {
-        setError("Login incorrect");
-        return;
+       const errorData = await res.json().catch(() => ({}));
+       setIsLoggingIn(false); 
+       setError(errorData.detail || "Login incorrect");
+      return;
       }
 
       let data;
@@ -149,8 +155,8 @@ export default function PageAuth() {
         return;
       }
 
-      if (!data || data.message !== "Logged in") {
-        setError("Login incorrect");
+      if (!data || !data.servers) {
+        setError("Session incomplète ou corrompue");
         return;
       }
 
@@ -162,15 +168,25 @@ export default function PageAuth() {
     } catch {
       setError("Erreur de connexion");
     }
+    finally {
+        // Le bloc 'finally' s'exécute quoi qu'il arrive (succès ou erreur)
+        setIsLoggingIn(false); // <--- ÉTAPE 2 : On arrête le chargement
+    }
   }
 
   async function handleLogout() {
+    setIsLoggingOut(true); // 1. On lance le chargement
     try {
       await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         credentials: "include"
       });
     } catch {}
+    
+    finally {
+    // Si on n'est pas encore redirigé, on arrête le spinner
+    setIsLoggingOut(false); 
+  }
 
     setIsLogged(false);
     setAllServersVMs(null);
@@ -182,12 +198,12 @@ export default function PageAuth() {
     setAllServersVMs(results);
   }
 
-  // 🔹 Chargement
+  // Chargement
   if (checkingSession) {
     return <div className="pageAuth"><p>Chargement...</p></div>;
   }
 
-  // 🔹 CONNECTÉ
+  // CONNECTÉ
   if (isLogged && allServersVMs) {
     const isMulti = server === "all";
 
@@ -258,7 +274,7 @@ export default function PageAuth() {
     );
   }
 
-  // 🔹 LOGIN
+  // LOGIN
   return (
     <div className="pageAuth">
       <form onSubmit={handleSubmit}>
@@ -290,7 +306,9 @@ export default function PageAuth() {
           ))}
         </select>
 
-        <button type="submit">Login</button>
+        <button type="submit" disabled={isLoggingIn} className="login-btn">
+        {isLoggingIn ? (<PulseLoader color="#ffffff" loading={isLoggingIn} size={10} aria-label="Loading Spinner" />) : ("Se connecter")}
+        </button>
 
         {error && <p className="error">{error}</p>}
       </form>
