@@ -3,9 +3,10 @@ import "../styles/userTable.css";
 
 export default function UsersTable() {
   const [files, setFiles] = useState([]); // Nommé plus logiquement 'setFiles'
-  const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
+  
+  //const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   //const API_BASE = `${BASE}api`;
-  const API_BASE = "api";
+  const API_BASE = `${import.meta.env.BASE_URL}api`;
 
 
   // Fonction pour gérer le clic
