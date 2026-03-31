@@ -4,7 +4,8 @@ import "../styles/userTable.css";
 export default function UsersTable() {
   const [files, setFiles] = useState([]); // Nommé plus logiquement 'setFiles'
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
-  const API_BASE = `${BASE}api`;
+  //const API_BASE = `${BASE}api`;
+  const API_BASE = "api";
 
 
   // Fonction pour gérer le clic
@@ -16,9 +17,7 @@ export default function UsersTable() {
 
   useEffect(() => {
     // Correction de l'URL : filenames (avec un s)
-    fetch(`${API_BASE}/csv/filenames`, {
-      credentials: "include"
-    })
+    fetch(`${API_BASE}/csv/filenames`, { credentials: "include" })
       .then(res => {
         if (!res.ok) throw new Error("Erreur réseau");
         return res.json();
