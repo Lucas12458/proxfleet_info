@@ -2,44 +2,57 @@ import { useEffect, useState } from "react";
 import "../styles/userTable.css";
 
 export default function UsersTable() {
-  const [files, setUsers] = useState([]);
+  const [files, setFiles] = useState([]); // Nommé plus logiquement 'setFiles'
   const API_BASE = "/app2/api";
 
+  // Fonction pour gérer le clic
+  const handleClick = (e, filename) => {
+    e.preventDefault();
+    console.log("Fichier cliqué :", filename);
+    // Ajoute ici ta logique (ex: charger le contenu du fichier)
+  };
 
-useEffect(() => {
-  fetch(`${API_BASE}/csv/filename`, {
-    credentials: "include"
-  })
-    .then(res => res.json())
-    .then(data => {
-    //console.log(data);
-    
-      setUsers(data.filenames || []);
+  useEffect(() => {
+    // Correction de l'URL : filenames (avec un s)
+    fetch(`${API_BASE}/csv/filenames`, {
+      credentials: "include"
     })
-    .catch(err => console.error(err));
-}, []);
+      .then(res => {
+        if (!res.ok) throw new Error("Erreur réseau");
+        return res.json();
+      })
+      .then(data => {
+        // On s'assure que data.filenames existe bien
+        setFiles(data.filenames || []);
+      })
+      .catch(err => console.error("Erreur lors du fetch :", err));
+  }, []);
 
-
-    return (
+  return (
     <div className="filesNames">
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Nom du fichier</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {files.map((filename, i) => (
               <tr key={i}>
-                <a href="#" onClick={this.handleClick}>click me!</a>
-                <td>{UsersTable(filename)}</td>
+                <td>{filename}</td> 
+                <td>
+                  <a href="#" onClick={(e) => handleClick(e, filename)}>
+                    Sélectionner
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {files.length === 0 && <p>Aucun fichier trouvé.</p>}
       </div>
     </div>
   );
 }
-
