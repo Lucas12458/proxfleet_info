@@ -11,11 +11,13 @@ export default function UsersTable() {
     
 
   useEffect(() => {
-    fetch(`${API_BASE}/csv/assignments?csv_id=students_example.csv`, {
+    fetch(`${API_BASE}/csv/read?csv_path=C%3A%5Ctmp%5Cuploads%5Cstudents_example.csv`, {
       credentials: "include" // important si cookie de session
     })
       .then(res => res.json())
-      .then(data => setUsers(data.data))
+      .then(data => {
+        console.log(data);
+        setUsers(data);})
       .catch(err => console.error(err));
   }, []);
   const { filenames, selectedFile, fileData, headers, loading, loadFile, deleteFile, uploadFile } = useCsvData(API_BASE);
