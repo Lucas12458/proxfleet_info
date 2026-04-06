@@ -159,40 +159,6 @@ async def logout(response: Response,session: dict = Depends(get_current_session)
     return {"ok": True, "message": "Logged out successfully"}
 
 
-
-
-       
-async def check_server_and_create_token(host: str, username: str, password: str) -> dict[str, dict] | None:
-    """Test de connexion à un serveur Proxmox"""
-    host_url = f"{host}.usmb-tri.fr"
-    
-    logging.debug(f"🔍 Tentative de connexion à {host_url} avec {username}")
-    
-    try:
-        # Test de connexion utilisateur
-        await run_in_threadpool(
-            ProxmoxAPI,
-            host=host_url,
-            user=username,
-            password=password,
-            verify_ssl=False
-        )
-        
-        logging.info(f"✅ Connexion réussie à {host_url}")
-        
-        # ===== RETOURNE UN TOKEN FACTICE =====
-        return {host: {
-            "tokenid": "test-token",
-            "value": "test-value-123"
-        }}
-        
-    except Exception as e:
-        logging.error(f"❌ Erreur pour {host_url}: {e}")
-        return None
-       
-
-    
-
     
 
 
