@@ -143,6 +143,14 @@ async def get_task_status(upid:str,proxmox_manager:ProxmoxManager = Depends(get_
 async def check_task_stopped(upid:str,timeout_sec:int=300,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.check_task_stopped(upid=upid,timeout_sec=timeout_sec)
 
+@router.get("/server/{host}/task/log")
+async def get_task_log(upid:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.get_task_log(upid=upid)
+
+@router.get("/server/{host}/tasks")
+async def get_tasks(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
+    return proxmox_manager.get_tasks()
+
 @router.get("/server/{host}/bridge")
 async def check_bridge_exists(bridge_name:str,proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.check_bridge_exists(bridge_name=bridge_name)
@@ -159,3 +167,4 @@ async def check_storage_exists(storage_name:str,proxmox_manager:ProxmoxManager =
 @router.get("/server/{host}/nextvm")
 async def get_next_vmid(proxmox_manager:ProxmoxManager = Depends(get_proxmox_manager)):
     return proxmox_manager.get_next_vmid()
+

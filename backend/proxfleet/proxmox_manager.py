@@ -367,6 +367,25 @@ class ProxmoxManager:
         except Exception as e:
             logging.error(f"Unable to query the status of task {upid}: {e}")
             return None, None
+        
+
+    def get_task_log(self,upid:str):
+        node = self.get_node_name()
+        result = self.proxmox.nodes(node).tasks(upid).log.get()
+        full_text = "\n".join(line["t"] for line in result)
+    
+        # On cherche la ligne d'erreur finale
+        error_msg = next((line["t"] for line in result if "TASK ERROR" in line["t"]), None)
+    
+        return {
+            "full_log": full_text,
+            "summary": error_msg or "success"
+        }
+    
+    def get_tasks(self):
+        node = self.get_node_name()
+        return self.proxmox.nodes(node).tasks.get()
+        
 
     def check_task_stopped(self, upid: str, timeout_sec=300):
         """
