@@ -27,10 +27,11 @@ services:
       
       # Middleware pour enlever le préfixe (/app2 ou /app2-dev)
       - "traefik.http.middlewares.cut-${PROJECT_ID}.stripprefix.prefixes=${APP_PATH}"
-      - "traefik.http.routers.${PROJECT_ID}.middlewares=cut-${PROJECT_ID}"
       - "traefik.http.middlewares.add-slash-${PROJECT_ID}.redirectregex.regex=^.*${APP_PATH}$$"
       - "traefik.http.middlewares.add-slash-${PROJECT_ID}.redirectregex.replacement=${APP_PATH}/"
+
       - "traefik.http.routers.${PROJECT_ID}.middlewares=add-slash-${PROJECT_ID},cut-${PROJECT_ID}"
+    
       - "traefik.docker.network=reverse_proxy"
       - "traefik.http.services.${PROJECT_ID}.loadbalancer.server.port=80"
     networks:
