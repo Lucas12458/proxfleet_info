@@ -28,11 +28,10 @@ ALLOWED_TYPES = {
 
 
 def get_proxmox_csv(csv_path: str) -> ProxmoxCSV:
-    file_path = Path(csv_path)
+    file_path = UPLOAD_DIR / csv_path
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="CSV not found")
     return ProxmoxCSV(csv_path=file_path)
-
 
 
 def parse_csv(proxmox_csv: ProxmoxCSV = Depends(get_proxmox_csv)):
@@ -180,20 +179,23 @@ async def write_csv(csv_data:CSVWrite,proxmox_csv:ProxmoxCSV = Depends(get_proxm
 
 
 
-@router.get("/csv/filename")
-async def filename_csv():
-    """
-    Liste tout les noms de fichiers CSV disponible dans le folder tmp/uploads.
-    """
+@router.get("/csv/assignments")
+async def get_assignments(csv_id: str):
+    file_path = UPLOAD_DIR / csv_id
+
+    if not file_path.exists():
+        raise HTTPException(404, "CSV not found")
+
+    proxmox_csv = ProxmoxCSV(csv_path=file_path)
+    return parse_csv(proxmox_csv)
+
+
+@router.get("/csv/filenames")
+async def list_csv_files():
     try:
-        files = list(UPLOAD_DIR.glob("*.csv"))
-        filenames = []
-        for i in files:
-            filenames.append(i.name)
-        return {
-            "filenames": filenames,
-        }
-    
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        files = [f.name for f in UPLOAD_DIR.iterdir() if f.is_file() and f.suffix == ".csv"]
+        return {"filenames": files}
     except Exception as e:
-        logging.error(f"Error listing filenames: {e}")
-        raise HTTPException(500, "Unable to list CSV files")
+        logging.error("Failed to list CSV files")
+        raise HTTPException(status_code=500, detail="Unable to list files")

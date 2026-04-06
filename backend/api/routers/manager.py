@@ -66,7 +66,6 @@ def get_token_for_host(host: str, session: dict) -> dict:
     }
 
 def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
-    logging.debug(session)
     token = get_token_for_host(host, session)
     user = session["user"]
     
@@ -82,9 +81,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
 app = FastAPI()
-@app.get("/front-end")
-def front():
-    return FileResponse("front-end/index.html")
 
 @router.get("/servers")
 async def get_servers():

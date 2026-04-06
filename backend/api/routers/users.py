@@ -32,7 +32,6 @@ def get_token_for_host(host: str, session: dict) -> dict:
 
 
 def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
-    logging.debug(session)
     token = get_token_for_host(host, session)
     user = session["user"]
     

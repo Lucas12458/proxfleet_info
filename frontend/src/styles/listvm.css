@@ -1,34 +1,40 @@
-/* === HEADER (TITRE + LOGOUT SUR LA MÊME LIGNE) === */
 .vm-header {
   width: 95%;
   margin: 0 auto;
   display: flex;
-  justify-content: space-between; /* titre à gauche, logout à droite */
-  align-items: center; /* empêche le titre de descendre */
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 15px;
 }
 
-/* === TITRE === */
 .vm-title {
   text-align: center;
   font-size: 32px;
   font-weight: bold;
-  margin: 0; /* IMPORTANT : empêche le titre de descendre */
-  flex: 1; /* permet au titre d'être centré même avec logout à droite */
+  margin: 0;
+  flex: 1;
 }
 
-/* === LOGOUT === */
 .logout-btn {
   padding: 10px 22px;
   background: #e74c3c;
   color: white;
   border: none;
-  border-radius: 50px; /* différent des autres boutons */
+  border-radius: 50px;
   font-size: 16px;
   font-weight: 700;
   font-family: "Segoe UI", sans-serif;
   cursor: pointer;
   transition: 0.2s;
+  width: 180px; 
+  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  
+  white-space: nowrap;
+  
+  transition: all 0.2s ease;
 }
 
 .logout-btn:hover {
@@ -36,102 +42,106 @@
   transform: scale(1.05);
 }
 
-/* === WRAPPER POUR CENTRER LE TABLEAU === */
 .vm-table-wrapper {
   display: flex;
   justify-content: center;
+  width: 80%;
+  margin: 0 auto 50px;
 }
 
-/* === TABLEAU === */
 .vm-table {
   border-collapse: collapse;
-  width: 95%;
-  max-width: 900px;
+  width: 100%;
   background: white;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   border-radius: 6px;
   overflow: hidden;
 }
 
-/* === EN-TÊTES === */
 .vm-table th {
   background: #2d6cdf;
   color: white;
   padding: 12px;
   text-align: left;
+  cursor: pointer;
 }
 
-/* === CELLULES === */
 .vm-table td {
   padding: 10px 12px;
   border-bottom: 1px solid #e5e5e5;
 }
 
-/* === LIGNES ALTERNÉES === */
 .vm-table tr:nth-child(even) {
   background: #f0f4ff;
 }
 
-/* === HOVER === */
-.vm-table tr:hover {
-  background: #e8f0ff;
+.vm-table th svg.asc {
+  width: 12px;
+  margin-left: 6px;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+  fill: #a0aec0;
 }
 
-/* === ACTIONS === */
+.vm-table th svg.desc {
+  width: 12px;
+  margin-left: 6px;
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+  fill: #a0aec0;
+}
+
 .vm-actions {
   display: flex;
   justify-content: space-between;
   width: 100%;
 }
 
-/* === BOUTONS === */
 .btn-start,
 .btn-stop,
+.btn-shutdown,
 .btn-delete {
-  width: 80px; /* même largeur */
-  padding: 8px 14px;
+  width: 80px;
+  padding: 8px 1px;
   border: none;
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
   font-weight: bold;
   color: white;
+  transition: 0.2s;
 }
 
-/* Start */
-.btn-start {
-  background: #2ecc71;
-}
-.btn-start:hover {
-  background: #27ae60;
-}
+.btn-start { background: #2ecc71; }
+.btn-start:hover { background: #27ae60; transform: scale(1.05); }
 
-/* Stop */
-.btn-stop {
-  background: #f39c12;
-}
-.btn-stop:hover {
-  background: #d68910;
-}
+.btn-stop { background: #f39c12; }
+.btn-stop:hover { background: #d68910; transform: scale(1.05); }
 
-/* Delete */
-.btn-delete {
-  background: #e74c3c;
-}
-.btn-delete:hover {
-  background: #c0392b;
-}
+.btn-shutdown { background: #1b1305; }
+.btn-shutdown:hover { background: #65635f; transform: scale(1.05); }
 
-/* Réduit un peu l’espace à droite */
-.vm-table td:last-child {
-  padding-right: 25px;
-}
-.create-row {
+.btn-delete { background: #e74c3c; }
+.btn-delete:hover { background: #c0392b; transform: scale(1.05); }
+
+.vm-table td:last-child { padding-right: 25px; }
+
+.toolbar-row {
   width: 95%;
   margin: 0 auto 15px auto;
   display: flex;
-  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
 }
+
+.create-side {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.create-side .create-btn:nth-child(1) { order: 2; }
+.create-side .create-btn:nth-child(2) { order: 1; }
 
 .create-input {
   padding: 10px 14px;
@@ -151,9 +161,199 @@
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s;
+  white-space: nowrap;
 }
 
 .create-btn:hover {
   background: #2980b9;
   transform: scale(1.05);
 }
+
+th:hover svg { fill: #ffffff; }
+
+.search-row {
+  width: 95%;
+  margin: 13px auto 15px auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+}
+
+.search-row svg {
+  position: absolute;
+  right: 12px;
+  color: #9e9ea7;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.search-row input {
+  width: 240px;
+  height: 38px;
+  padding: 0 2.5rem 0 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  background-color: #f8fafc;
+  color: #1a202c;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-row input::placeholder { color: #a0aec0; }
+.search-row input:hover { border-color: #cbd5e0; background-color: #fff; }
+.search-row input:focus {
+  border-color: #667eea;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  width: 300px;
+}
+
+.filter-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  background-color: #f8fafc;
+  color: #1a202c;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.filter-input::placeholder { color: #a0aec0; }
+.filter-input:hover { border-color: #cbd5e0; background-color: #fff; }
+.filter-input:focus {
+  border-color: #667eea;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.filter-toggle-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: white;
+  transition: all 0.2s;
+}
+
+.filter-toggle-btn:hover { background: rgba(255,255,255,0.15); }
+.filter-toggle-btn.active {
+  background: rgba(255,255,255,0.25);
+  border-color: white;
+}
+
+.server-filter {
+  width: 95%;
+  margin: 0 auto 15px auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.server-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #4a5568;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.server-chip:hover { border-color: #2d6cdf; color: #2d6cdf; background: #ebf2ff; }
+.server-chip.active { background: #2d6cdf; border-color: #2d6cdf; color: white; }
+.server-chip input[type="checkbox"] { display: none; }
+
+.server-select {
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8fafc;
+  color: #1a202c;
+  cursor: pointer;
+}
+
+.refresh-btn {
+  padding: 10px 22px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+
+.refresh-btn:hover { background: #2980b9; transform: scale(1.05); }
+
+.console-container {
+  position: fixed;
+  bottom: 0;
+  right: 20px;
+  width: 400px;
+  max-height: 200px;
+  background: #1e1e1e;
+  color: #00ff00;
+  font-family: monospace;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+
+.console-header {
+  background: #333;
+  align-items: center;
+  padding: 5px 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  border-radius: 8px 8px 0 0;
+}
+
+.console-body {
+  padding: 10px;
+  overflow-y: auto;
+  font-size: 11px;
+  flex-grow: 1;
+  max-height: 250px;
+}
+
+.console-actions { display: flex; gap: 10px; }
+.log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }
+.log-entry.info { color: #888; }
+.log-entry.error { color: #ff5555; }
+.log-entry.success { color: #55ff55; }
+.log-time { color: #888; margin-right: 5px; }
+
+.clear-logs:hover { background: #d9534f; transform: scale(1.05); }
+
+.toggle-logs,
+.clear-logs {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.toggle-logs { background: #444; color: white; }
+.clear-logs { background: #2980b9; color: white; }
