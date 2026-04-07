@@ -217,12 +217,7 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         <h2 className="vm-title">
           {isMulti ? "VMs — Tous les serveurs" : `VMs du serveur ${server}`}
         </h2>
-        <button onClick={handleLocalLogout} disabled={isLoggingOut} className="logout-btn">
-        {isLoggingOut ? (<><ClipLoader color="#ffffff" size={15} />
-        <span style={{ marginLeft: "8px" }}>Déconnexion</span></>
-        ) : ("Déconnexion"
-        )}
-        </button>
+        
       </div>
 
       <div className="toolbar-row">

@@ -11,6 +11,7 @@ services:
       - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
     volumes :
       - ./data-${PROJECT_ID}:/app/data
+      - ./config-${PROJECT_ID}:/app/config
     networks:
       - proxfleet-internal
     restart: always

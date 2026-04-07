@@ -9,9 +9,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: base_path, 
     server: {
+      host: '127.0.0.1',
       proxy: {
         [`${base_path}api`]: {
-          target: 'http://localhost:8000',
+          target: 'http://127.0.0.1:8000',
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${base_path}api`), '')
         },

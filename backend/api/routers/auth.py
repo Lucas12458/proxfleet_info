@@ -15,6 +15,7 @@ from pathlib import Path
 import logging
 import asyncio
 import os
+import json
 import uuid
 import time
 
@@ -32,6 +33,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # path to the yaml file
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
+# Path to the shared volume where the whitelist is stored
+ADMINS_FILE_PATH = "/app/config/admins.json"
+
 admin_user = os.getenv("PROXMOX_USER")
 admin_pass = os.getenv("PROXMOX_PASSWORD")
 
@@ -42,6 +46,35 @@ SESSION_EXPIRE_SECONDS = 3600
 router = APIRouter(tags=["Authentification"])
 
 api_cookie = APIKeyCookie(name="session_cookie")
+
+
+def get_effective_role(username: str,role:str) -> str:
+    """
+    Determines the effective user role by first checking the whitelist,
+    falling back to the default role if necessary.
+    
+    Args:
+        username (str): The username to check against the whitelist.
+        role (str): The default role assigned.
+        
+    Returns:
+        str: The final determined role ("admin" if whitelisted, otherwise role).
+    """
+    
+    if os.path.exists(ADMINS_FILE_PATH):
+        try:
+            with open(ADMINS_FILE_PATH, "r") as f:
+                admins_list = json.load(f)
+                
+               
+                if username in admins_list:
+                    return "admin"
+                    
+        except json.JSONDecodeError:
+            logging.error("The admins.json file is improperly formatted.")
+    return role
+
+
 
 
 def get_current_session(session_cookie: str = Depends(api_cookie)):
@@ -63,6 +96,30 @@ def get_current_session(session_cookie: str = Depends(api_cookie)):
         raise ProxmoxUnauthorizedError(host="N/A", user=session.get("user"), reason="Session expired")
 
     return session
+
+def verify_admin_rights(current_session = Depends(get_current_session)):
+    """
+    FastAPI dependency to protect sensitive routes.
+    Re-verifies admin status in real-time against the whitelist.
+    
+    Args:
+        current_session (dict): The session data retrieved from the cookie.
+        
+    Raises:
+        HTTPException: 403 Forbidden if the user lacks administrative rights.
+        
+    Returns:
+        dict: The validated session data.
+    """
+    username = current_session["user"].split("@")[0]
+    effective_role = get_effective_role(username,current_session["role"])
+    
+    if effective_role not in ["admin"]:
+       raise HTTPException(
+            status_code=403,
+            detail=f"Access denied for {username}. Admin privileges required."
+        )
+    return current_session
 
 
 async def check_server_and_create_token(host: str, username: str,password: str) -> dict[str, dict] | None:
@@ -106,10 +163,16 @@ async def login_for_access_token(data: LoginRequest):
         failed_hosts = ", ".join(data.hosts)
         raise ProxmoxUnauthorizedError(host=failed_hosts, user=user, reason="Invalid credentials or all hosts unreachable")
 
+    # Determine the role (checking the whitelist)
+    # Default role is assumed to be 'student' or equivalent from Proxmox
+    default_role = "student" 
+    
+    effective_role = get_effective_role(data.username, default_role)
     
     session_id = str(uuid.uuid4())
     SESSIONS[session_id] = {
         "user": user,
+        "role": effective_role,
         "servers": server_tokens,
         "expires_at": time.time() + SESSION_EXPIRE_SECONDS
     }
@@ -117,7 +180,11 @@ async def login_for_access_token(data: LoginRequest):
    
     response = JSONResponse({
         "message": "Successfully authenticated",
-        "servers": list(server_tokens.keys())
+        "servers": list(server_tokens.keys()),
+        "user_info": {
+            "username": data.username,
+            "role": effective_role
+        }
     })
     response.set_cookie(
         key="session_cookie",
