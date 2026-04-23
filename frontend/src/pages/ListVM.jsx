@@ -128,39 +128,56 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
 
   async function checkTaskStatus(srv, upid, action, vmid) {
     const actionKey = `${srv}-${vmid}-${action}`;
+  
     try {
       const res = await fetch(`${API_BASE}/server/${srv}/task/status?upid=${upid}`, {
         credentials: "include"
       });
-
-      if (!res.ok){
-        setActionLoading(prev => { const n = {...prev}; delete n[actionKey]; return n; });
+  
+      if (!res.ok) {
+        setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
         return;
       }
-      
-      const task = await res.json();
+  
+      const task = await res.json(); // ["running", null] ou ["stopped", "OK"]
       console.log("Réponse API Status:", task);
-
-      if (task[0] === "stopped") {
-        const resultColor = task[1] === "OK" ? "success" : "error";
-        addLog(`[Proxmox] Fin de ${action} sur VM ${vmid} : ${task[1]}`, resultColor);
-        setActionLoading(prev => {
+  
+      //Si la tâche n'est pas terminée → on continue le polling
+      if (task[0] !== "stopped") {
+        console.log("tâche en cours");
+        setTimeout(() => checkTaskStatus(srv, upid, action, vmid), 1000);
+        return;
+      }
+  
+      // Ici la tâche est STOPPED → on peut récupérer le log
+      const res2 = await fetch(`${API_BASE}/server/${srv}/task/log?upid=${upid}`, {
+        credentials: "include"
+      });
+  
+      const task2 = await res2.json();
+      console.log("Réponse API log:", task2);
+  
+      const resultColor = task[1] === "OK" ? "success" : "error";
+  
+      addLog(`[Proxmox] ${action} sur VM ${vmid} : ${task2.full_log}`, resultColor);
+      //addLog(`[Proxmox] Log de la tâche : ${task2.full_log || "Aucun log"}`, "info");
+  
+      //Fin du chargement
+      setActionLoading(prev => {
         const newState = { ...prev };
         delete newState[actionKey];
         return newState;
-      })
-        
-        onRefresh();
-        console.log("tache fini");
-      } else {
-        console.log("tache en cours");
-        setTimeout(() => checkTaskStatus(srv, upid, action, vmid), 1000);
-      }
+      });
+  
+      onRefresh();
+      console.log("tâche terminée");
+  
     } catch (err) {
-      setActionLoading(prev => { const n = {...prev}; delete n[actionKey]; return n; });
+      setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
       console.error("Erreur suivi tâche:", err);
     }
   }
+  
 
   function handleHeaderClick(h) {
     setSort({

@@ -86,14 +86,14 @@ export default function PageAuth({ onLogin }) {
         return;
       }
 
-      localStorage.setItem("hasLoggedOnce", "true");
-
-      // 1. On met a jour l'etat global dans App.jsx avec les infos de l'API
-      // Si l'API ne renvoie pas encore user_info, on met un fallback temporaire
+      // ON REMPLACE : localStorage.setItem("hasLoggedOnce", "true");
+      // PAR : Le stockage des infos réelles pour le refresh
       const userInfo = data.user_info || { nom: username, role: "etudiant" };
+      
+      // 1. On met a jour l'etat global (ceci appelle handleLogin dans App.jsx)
       onLogin(userInfo);
 
-      // 2. On redirige vers la page principale des VMs
+      // 2. On redirige vers la page principale
       navigate("/");
 
     } catch {
