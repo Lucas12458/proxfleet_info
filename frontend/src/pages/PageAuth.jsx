@@ -106,7 +106,7 @@ export default function PageAuth({ onLogin }) {
   // L'interface ne contient plus que le formulaire
   return (
     <div className="pageAuth">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="on">
         <h2>Connexion</h2>
 
         <input
