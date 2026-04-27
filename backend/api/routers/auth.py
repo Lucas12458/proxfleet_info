@@ -34,7 +34,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
 # Path to the shared volume where the whitelist is stored
-ADMINS_FILE_PATH = "/app/config/admins.json"
+ADMINS_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "admins.json")
 
 admin_user = os.getenv("PROXMOX_USER")
 admin_pass = os.getenv("PROXMOX_PASSWORD")
