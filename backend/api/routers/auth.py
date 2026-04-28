@@ -14,13 +14,18 @@ from dotenv import load_dotenv
 from pathlib import Path
 import logging
 import asyncio
+import aiofiles
 import os
 import json
 import uuid
 import time
 
 load_dotenv()
-logging.basicConfig(level=logging.DEBUG)
+
+log_level_str = os.getenv("LOG", "INFO").upper()
+
+logging.basicConfig(level=log_level_str)
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -34,10 +39,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
 
 # Path to the shared volume where the whitelist is stored
-ADMINS_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "admins.json")
+ADMINS_FILE_PATH = "/app/config/admins.json"
 
-admin_user = os.getenv("PROXMOX_USER")
-admin_pass = os.getenv("PROXMOX_PASSWORD")
+
 
 SESSIONS = {}
 SESSION_EXPIRE_SECONDS = 3600
@@ -48,32 +52,18 @@ router = APIRouter(tags=["Authentification"])
 api_cookie = APIKeyCookie(name="session_cookie")
 
 
-def get_effective_role(username: str,role:str) -> str:
-    """
-    Determines the effective user role by first checking the whitelist,
-    falling back to the default role if necessary.
-    
-    Args:
-        username (str): The username to check against the whitelist.
-        role (str): The default role assigned.
-        
-    Returns:
-        str: The final determined role ("admin" if whitelisted, otherwise role).
-    """
-    
+
+async def get_effective_role_async(username: str, role: str) -> str:
     if os.path.exists(ADMINS_FILE_PATH):
         try:
-            with open(ADMINS_FILE_PATH, "r") as f:
-                admins_list = json.load(f)
-                
-               
+            async with aiofiles.open(ADMINS_FILE_PATH, mode='r') as f:
+                content = await f.read()
+                admins_list = json.loads(content)
                 if username in admins_list:
                     return "admin"
-                    
         except json.JSONDecodeError:
             logging.error("The admins.json file is improperly formatted.")
     return role
-
 
 
 
@@ -97,7 +87,7 @@ def get_current_session(session_cookie: str = Depends(api_cookie)):
 
     return session
 
-def verify_admin_rights(current_session = Depends(get_current_session)):
+async def verify_admin_rights(current_session = Depends(get_current_session)):
     """
     FastAPI dependency to protect sensitive routes.
     Re-verifies admin status in real-time against the whitelist.
@@ -112,7 +102,7 @@ def verify_admin_rights(current_session = Depends(get_current_session)):
         dict: The validated session data.
     """
     username = current_session["user"].split("@")[0]
-    effective_role = get_effective_role(username,current_session["role"])
+    effective_role = await get_effective_role_async(username,current_session["role"])
     
     if effective_role not in ["admin"]:
        raise HTTPException(
@@ -122,17 +112,20 @@ def verify_admin_rights(current_session = Depends(get_current_session)):
     return current_session
 
 
-async def check_server_and_create_token(host: str, username: str,password: str) -> dict[str, dict] | None:
+async def check_server_and_create_token(host: str, username: str, password: str) -> dict[str, dict] | None:
     """
-    Attempt to connect to a Proxmox host and generate a scoped API token.
+    Attempt to connect to a Proxmox host, clean old tokens, and generate a scoped API token.
     """
     host_url = f"{host}.usmb-tri.fr"
     try:
-        await run_in_threadpool(ProxmoxAPI,host=host_url,user=username,password=password,verify_ssl=False)
+        # Instantiate with user password
+        proxmox_auth = ProxmoxAuth(proxmox_host=host_url, proxmox_user=username, proxmox_password=password)
         
-        proxmox_auth = ProxmoxAuth(proxmox_host=host_url,admin_user=admin_user,admin_password=admin_pass,target_user=username)
+        # Clean up tokens from previous sessions
+        await run_in_threadpool(proxmox_auth.clean_old_tokens)
         
-        token_data = await run_in_threadpool(proxmox_auth.create_token,privsep=0,ttl_seconds=3600)
+        # Generate a new scoped token
+        token_data = await run_in_threadpool(proxmox_auth.create_token, privsep=0, ttl_seconds=3600)
         
         return {host: token_data}
 
@@ -167,7 +160,7 @@ async def login_for_access_token(data: LoginRequest):
     # Default role is assumed to be 'student' or equivalent from Proxmox
     default_role = "student" 
     
-    effective_role = get_effective_role(data.username, default_role)
+    effective_role = await get_effective_role_async(data.username, default_role)
     
     session_id = str(uuid.uuid4())
     SESSIONS[session_id] = {
@@ -191,7 +184,7 @@ async def login_for_access_token(data: LoginRequest):
         value=session_id,
         max_age=SESSION_EXPIRE_SECONDS,
         httponly=True,  
-        secure=False    
+        secure=os.getenv("ENVIRONMENT") == "production"
     )
     return response
 
@@ -202,24 +195,6 @@ async def logout(response: Response,session: dict = Depends(get_current_session)
     Perform a full logout by deleting remote tokens and clearing local session.
     """
     
-    servers = session.get("servers", {})
-    user = session.get("user")
-    for server, token_data in servers.items():
-        tokenid = token_data.get("tokenid")
-        
-        if not tokenid:
-            continue
-
-        try:
-            
-            proxmox_auth = ProxmoxAuth(proxmox_host=f"{server}.usmb-tri.fr",admin_user=admin_user,admin_password=admin_pass,target_user=user)
-            proxmox_auth.delete_token(tokenid)
-        
-        except Exception as e:
-            logging.warning(f"Failed to delete token {tokenid} on {server}: {e}")
-
-
-        
     SESSIONS.pop(session_cookie, None)
     response.delete_cookie("session_cookie")
     
