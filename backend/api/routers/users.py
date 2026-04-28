@@ -10,7 +10,9 @@ import logging
 
 
 dotenv.load_dotenv()
-logging.basicConfig(level=logging.DEBUG)
+
+log_level_str = os.getenv("LOG", "INFO").upper()
+logging.basicConfig(level=log_level_str)
 
 
 def get_token_for_host(host: str, session: dict) -> dict:

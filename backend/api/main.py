@@ -1,8 +1,16 @@
-from fastapi import FastAPI,Request
+from fastapi import FastAPI,Request,BackgroundTasks
 from api.routers import manager,vms,users,files,auth
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from api.exceptions.exceptions import ProxmoxResourceNotFoundError, ProxmoxConnectionError,ProxmoxUnauthorizedError,ProxmoxInvalidTokenError
+from proxfleet.proxmox_manager import ProxmoxManager
+from contextlib import asynccontextmanager
+from api.exceptions.exceptions import (ProxmoxResourceNotFoundError, 
+                                       ProxmoxConnectionError,
+                                       ProxmoxUnauthorizedError,
+                                       ProxmoxInvalidTokenError,
+                                       ProxmoxAPIError,
+                                       ProxmoxTaskTimeoutError,
+                                       ProxfleetError)
 from pathlib import Path
 import os
 import logging
@@ -19,7 +27,8 @@ app = FastAPI(
     root_path=f"{APP_PATH}/api",
     docs_url=None if ENV_TYPE == "production" else "/docs",
     redoc_url=None if ENV_TYPE == "production" else "/redoc",
-    openapi_url=None if ENV_TYPE == "production" else "/openapi.json"
+    openapi_url=None if ENV_TYPE == "production" else "/openapi.json",
+    
 )
 
 origins = [
@@ -42,6 +51,7 @@ app.include_router(vms.router)
 app.include_router(users.router)
 app.include_router(files.router)
 app.include_router(auth.router)
+
 
 @app.exception_handler(ProxmoxResourceNotFoundError)
 async def resource_not_found_handler(request, exc):
@@ -71,4 +81,25 @@ async def general_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"message": "An unexpected server error occurred."}
+    )
+
+@app.exception_handler(ProxmoxAPIError)
+async def api_error_handler(request: Request, exc: ProxmoxAPIError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": str(exc)}
+    )
+
+@app.exception_handler(ProxmoxTaskTimeoutError)
+async def task_timeout_handler(request: Request, exc: ProxmoxTaskTimeoutError):
+    return JSONResponse(
+        status_code=504,
+        content={"detail": str(exc), "upid": exc.upid}
+    )
+
+@app.exception_handler(ProxfleetError)
+async def base_proxfleet_handler(request: Request, exc: ProxfleetError):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)}
     )

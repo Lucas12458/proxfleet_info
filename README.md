@@ -57,17 +57,6 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Configuration
-
-### Environment Variables (Proxmox authentication)
-
-Create a `.env` file in the project root directory:
-
-**Use your credentials from the Proxmox servers:**
-```bash
-PROXMOX_USER=root@pam
-PROXMOX_PASSWORD=myPassword123
-```
 
 ## Running the API
 

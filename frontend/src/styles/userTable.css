@@ -197,3 +197,37 @@
   justify-content: flex-end;
   margin-bottom: 12px;
 }
+/* === CONTENT HEADER === */
+.content-header { margin-bottom: 16px; }
+.content-title { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.content-title h2 { margin: 0; }
+.row-count { font-size: 13px; color: #888; }
+
+/* === TOOLBAR === */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-wrapper { display: flex; align-items: center; background: white; border: 1.5px solid #d0d7e3; border-radius: 6px; padding: 0 10px; flex: 1; min-width: 220px; max-width: 420px; transition: border-color 0.2s; }
+.search-wrapper:focus-within { border-color: #2d6cdf; }
+.search-icon { font-size: 14px; color: #aaa; margin-right: 6px; }
+.search-input { border: none; outline: none; font-size: 14px; padding: 8px 0; width: 100%; background: transparent; color: #333; }
+.search-input::placeholder { color: #bbb; }
+.clear-input { background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px; }
+.clear-input:hover { color: #e74c3c; }
+.filter-toggle-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: white; border: 1.5px solid #d0d7e3; border-radius: 6px; font-size: 13px; font-weight: 600; color: #444; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.filter-toggle-btn:hover { border-color: #2d6cdf; color: #2d6cdf; }
+.filter-toggle-btn.active { background: #2d6cdf; border-color: #2d6cdf; color: white; }
+.filter-badge { background: #e74c3c; color: white; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 1px 6px; }
+.filter-toggle-btn.active .filter-badge { background: white; color: #e74c3c; }
+.clear-filters-btn { padding: 8px 14px; background: none; border: 1.5px solid #e74c3c; border-radius: 6px; font-size: 13px; font-weight: 600; color: #e74c3c; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.clear-filters-btn:hover { background: #e74c3c; color: white; }
+
+/* === COLUMN FILTERS === */
+.column-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding: 14px; background: white; border: 1.5px solid #e0e7f0; border-radius: 8px; }
+.column-filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
+.column-filter-label { font-size: 11px; font-weight: 700; color: #2d6cdf; text-transform: uppercase; letter-spacing: 0.5px; }
+.column-filter-input { padding: 6px 8px; border: 1.5px solid #d0d7e3; border-radius: 5px; font-size: 13px; outline: none; transition: border-color 0.2s; color: #333; }
+.column-filter-input:focus { border-color: #2d6cdf; }
+
+/* === LOGIN HINT === */
+.login-hint { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; margin-bottom: 12px; background: #f0f4ff; border: 1px dashed #2d6cdf; border-radius: 6px; text-align: center; }
+.login-hint span { font-size: 1.1rem; }
+.login-hint p { margin: 0; font-size: 0.75rem; color: #2d6cdf; line-height: 1.4; }

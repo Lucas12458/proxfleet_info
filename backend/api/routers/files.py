@@ -1,6 +1,7 @@
 from proxfleet.proxmox_csv import ProxmoxCSV
 from fastapi import Depends,APIRouter,HTTPException,UploadFile,File
 from pydantic import BaseModel
+from api.routers import auth
 import os
 import dotenv
 import logging
@@ -15,15 +16,16 @@ class CSVWrite(BaseModel):
     rows : list[dict]
     field_names : list[str]
     
+dotenv.load_dotenv()
 
-logging.basicConfig(level=logging.DEBUG)
+log_level_str = os.getenv("LOG", "INFO").upper()
+logging.basicConfig(level=log_level_str)
 
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/data"))
 
 ALLOWED_TYPES = {
     "text/csv",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel"
 }
 
 
@@ -32,6 +34,10 @@ def get_proxmox_csv(csv_path: str) -> ProxmoxCSV:
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="CSV not found")
     return ProxmoxCSV(csv_path=file_path)
+
+
+
+
 
 
 def parse_csv(proxmox_csv: ProxmoxCSV = Depends(get_proxmox_csv)):
@@ -77,7 +83,7 @@ def parse_csv(proxmox_csv: ProxmoxCSV = Depends(get_proxmox_csv)):
 router = APIRouter(tags=["CSV"])
 
 @router.post("/csv/upload",status_code=201)
-async def create_upload_csv(csv: UploadFile = File(...)):
+async def create_upload_csv(csv: UploadFile = File(...),session = Depends(auth.verify_admin_rights)):
     if csv.content_type not in ALLOWED_TYPES:
         raise HTTPException(415, "Invalid file type")
     else:

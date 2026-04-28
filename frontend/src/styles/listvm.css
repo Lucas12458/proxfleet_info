@@ -70,11 +70,11 @@
   padding: 10px 12px;
   border-bottom: 1px solid #e5e5e5;
 }
-
+/*
 .vm-table tr:nth-child(even) {
   background: #f0f4ff;
 }
-
+*/
 .vm-table th svg.asc {
   width: 12px;
   margin-left: 6px;
@@ -357,3 +357,28 @@ th:hover svg { fill: #ffffff; }
 
 .toggle-logs { background: #444; color: white; }
 .clear-logs { background: #2980b9; color: white; }
+
+
+/* Ligne sélectionnée */
+.row-selected {
+  background-color: #b8f7f7;
+}
+
+/* Barre d'actions groupées */
+.bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #f0f4ff;
+  border: 1px solid #c7d4f7;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.bulk-count {
+  font-weight: 600;
+  color: #3a5bd9;
+  margin-right: 8px;
+}

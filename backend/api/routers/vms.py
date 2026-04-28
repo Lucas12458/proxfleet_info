@@ -2,7 +2,13 @@ from proxfleet.proxmox_manager import ProxmoxManager
 from proxfleet.proxmox_vm import ProxmoxVM
 from proxfleet.proxmox_authentication import ProxmoxAuth
 from api.routers import auth
-from api.exceptions.exceptions import ProxmoxUnauthorizedError,ProxmoxInvalidTokenError,ProxmoxConnectionError
+from api.exceptions.exceptions import (
+    ProxmoxUnauthorizedError,
+    ProxmoxInvalidTokenError,
+    ProxmoxConnectionError,
+    ProxmoxAPIError,
+    ProxmoxResourceNotFoundError
+)
 from fastapi import Depends, APIRouter, HTTPException
 from pydantic import BaseModel,Field
 import os
@@ -10,10 +16,9 @@ import dotenv
 import logging
 
 dotenv.load_dotenv()
-logging.basicConfig(level=logging.DEBUG)
 
-admin_user = os.getenv("PROXMOX_USER")
-admin_pass = os.getenv("PROXMOX_PASSWORD")
+log_level_str = os.getenv("LOG", "INFO").upper()
+logging.basicConfig(level=log_level_str)
 
 class VMAction(BaseModel):
     action: str  # start, stop, shutdown, reboot, delete
@@ -56,85 +61,86 @@ def get_token_for_host(host: str, session: dict) -> dict:
     }
 
 
-def get_proxmox_auth(host:str,session=Depends(auth.get_current_session)) -> ProxmoxAuth:
-    """
-    Initialize a ProxmoxAuth instance for a specific host using session credentials.
-
-    This dependency verifies that the user has access to the requested host
-    and that valid API token data exists within their session.
-
-    Args:
-        host: The target Proxmox hostname.
-        session: The current validated user session.
-
-    Returns:
-        ProxmoxAuth: An authenticated object ready to perform administrative tasks.
-
-    Raises:
-        ProxmoxUnauthorizedError: If the user lacks access to the host or token is missing.
-        ProxmoxInvalidTokenError: If the token data is incomplete or corrupted.
-        ProxmoxConnectionError: If the authentication manager fails to initialize.
-    """
-    if host not in session["servers"]:
-        raise ProxmoxUnauthorizedError(host=host, user=session["user"])
-    
-    token_data = session["servers"].get(host)
-    if not token_data:
-        raise ProxmoxUnauthorizedError(host=host, user=session["user"], reason="No token found")
-        
-    token_id = token_data.get("token_id")
-    token_secret = token_data.get("token_secret")
-        
-    if not token_id or not token_secret:
-        raise ProxmoxInvalidTokenError(host=host, token_id=token_id)
-
-    try: 
-        return ProxmoxAuth(proxmox_host=f"{host}.usmb-tri.fr",admin_user=admin_user,admin_password=admin_pass,target_user=session["user"])
-    
-    except Exception as e:
-        logging.error(f"Failed to initialize ProxmoxAuth for {host}: {e}")
-        raise ProxmoxConnectionError(host=host)
-
-
-def get_proxmox_manager(host: str,session=Depends(auth.get_current_session)) -> ProxmoxManager:
+def get_proxmox_manager(host: str, session=Depends(auth.get_current_session)) -> ProxmoxManager:
     """
     Dependency to provide a ProxmoxManager instance for a specific host.
-    Useful for node-level operations like listing VMs or checking storage.
+    Validates session access and token integrity.
     """
+    if "servers" not in session or host not in session["servers"]:
+        raise ProxmoxUnauthorizedError(
+            host=host, 
+            user=session.get("user", "Unknown"), 
+            reason="Access to this specific Proxmox host is not authorized for your session."
+        )
+
     token = get_token_for_host(host, session)
     user = session["user"]
     
-    return ProxmoxManager(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True, token_name=token["token_name"],token_value=token["token_value"])
+    try:
+        return ProxmoxManager(
+            proxmox_host=f"{host}.usmb-tri.fr",
+            proxmox_user=user,
+            use_token=True, 
+            token_name=token["token_name"],
+            token_value=token["token_value"]
+        )
+    except Exception as e:
+        logging.error(f"Failed to connect to Proxmox host {host}: {e}")
+        raise ProxmoxConnectionError(host=host)
 
    
 
 def get_proxmox_vm(host: str, vmid: int, session=Depends(auth.get_current_session)) -> ProxmoxVM:
     """
     Dependency to provide a ProxmoxVM instance.
-    Targets a specific Virtual Machine on a specific host to perform individual actions.
+    Checks host access before initializing.
     """
+    if host not in session.get("servers", {}):
+        raise ProxmoxUnauthorizedError(
+            host=host, 
+            user=session.get("user"), 
+            reason="Access to this host is not permitted in your current session."
+        )
+
     token = get_token_for_host(host, session)
-    user = session["user"]
-    return ProxmoxVM(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True,token_name=token["token_name"],token_value=token["token_value"],vmid=vmid)
     
-def get_proxmox_vm_for_clone(host: str,vm_data: CloneVMRequest,session=Depends(auth.get_current_session)) -> ProxmoxVM:
+    try:
+        manager = get_proxmox_manager(host=host, session=session)
+        return ProxmoxVM(manager=manager, vmid=vmid)
+    except Exception as e:
+        raise ProxmoxConnectionError(host=host)
+
+def get_proxmox_vm_for_clone(host: str, vm_data: CloneVMRequest, session=Depends(auth.get_current_session)) -> ProxmoxVM:
     """
     Special dependency for VM cloning operations.
-    Initializes a ProxmoxVM instance and pre-configures it with the new VM metadata 
-    (ID, name, pool, storage) provided in the request body.
+    Validates host access and maps request data.
     """
-    token = get_token_for_host(host, session)
-    user = session["user"]
+    if host not in session.get("servers", {}):
+        raise ProxmoxUnauthorizedError(
+            host=host, 
+            user=session.get("user"), 
+            reason="Access to this host is not permitted in your current session."
+        )
 
-    vm = ProxmoxVM(proxmox_host=f"{host}.usmb-tri.fr",proxmox_user=user,use_token=True,token_name=token["token_name"],token_value=token["token_value"])
+    try:
+        manager = get_proxmox_manager(host=host, session=session)
+        vm = ProxmoxVM(manager=manager)
 
-    vm.newid = vm_data.newid
-    vm.name_vm = vm_data.name
-    vm.template_vm = vm_data.template
-    vm.pool_vm = vm_data.pool
-    vm.storage_vm = vm_data.storage
+        if not vm_data.template:
+            raise ProxmoxAPIError("A source template ID is required for cloning.")
 
-    return vm
+        vm.newid = vm_data.newid
+        vm.name_vm = vm_data.name
+        vm.template_vm = vm_data.template
+        vm.pool_vm = vm_data.pool
+        vm.storage_vm = vm_data.storage
+
+        return vm
+
+    except (ProxmoxUnauthorizedError, ProxmoxInvalidTokenError):
+        raise
+    except Exception as e:
+        raise ProxmoxAPIError(f"Failed to initialize clone request for host {host}: {str(e)}")
 
 
 router = APIRouter(tags=["Vms"])
@@ -142,23 +148,32 @@ router = APIRouter(tags=["Vms"])
 
 
 @router.get("/server/{host}/vm")
-async def get_vms(host:str,proxmox_manager : ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_vms(host: str, proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
     """
     List all Virtual Machines available on the specified Proxmox host.
     """
-    return  proxmox_manager.list_vms()
-   
+    try:
+        return proxmox_manager.list_vms()
+    except Exception as e:
+        raise ProxmoxAPIError(f"Failed to list VMs on host {host}: {str(e)}")
         
     
     
 @router.get("/server/{host}/vm/{vmid}")
-async def get_vm_status(host:str,vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
+async def get_vm_status(host: str, vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
     """
     Retrieve the current power status and QEMU guest agent status for a specific VM.
     """
-    
-    return {"status": proxmox_vm.status(), "agent_status": proxmox_vm.status_agent()}
-  
+    try:
+        return {"status": proxmox_vm.status(), "agent_status": proxmox_vm.status_agent()}
+    except Exception as e:
+        error_msg = str(e)
+        
+        if "404" in error_msg or "not exist" in error_msg.lower():
+            raise ProxmoxResourceNotFoundError(resource_type="VM",resource_id=str(vmid),host=host)
+            
+        
+        raise ProxmoxAPIError(f"Failed to retrieve status for VM {vmid}: {error_msg}")
 
 
 @router.post("/server/{host}/vm/{vmid}/action")
@@ -177,31 +192,69 @@ async def vm_action(vmid: int, action_data: VMAction, proxmox_vm: ProxmoxVM = De
         "delete": proxmox_vm.delete
     }
     if action_data.action not in actions:
-        raise HTTPException(status_code=400, detail=f"Action '{action_data.action}' is not supported.")
-    return actions[action_data.action]()
+        raise ProxmoxAPIError(f"Action '{action_data.action}' is not supported for VM {vmid}.")
+    
+    try:
+        return actions[action_data.action]()
+    except Exception as e:
+        raise ProxmoxAPIError(f"Failed to execute {action_data.action} on VM {vmid}: {str(e)}")
 
     
-    
-    
-    
-   
 @router.get("/server/{host}/vm/{vmid}/network")
-async def get_vm_network(vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
+async def get_vm_network(host: str, vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
     """
     Fetch network interface configurations and the primary management IP address of the VM.
     """
-    return {"interfaces": proxmox_vm.get_network_interfaces(), "management_ip": proxmox_vm.management_ip()}
-
+    try:
+        return {"interfaces": proxmox_vm.get_network_interfaces(), "management_ip": proxmox_vm.management_ip()}
+    except Exception as e:
+        error_msg = str(e)
+        
+        if "403" in error_msg or "Permission check failed" in error_msg:
+            raise ProxmoxUnauthorizedError(host=host, user="current_user", reason=f"Insufficient permissions (VM.Monitor) for VM {vmid}")
+            
+        elif "agent" in error_msg.lower() or "500" in error_msg:
+            raise ProxmoxConnectionError(host=f"{host} (QEMU Agent on VM {vmid} not responding)")
+            
+        else:
+            raise ProxmoxAPIError(f"Internal error while reading network data: {error_msg}")
 
 
 @router.post("/server/{host}/vm/clone")
-async def clone_vm(proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for_clone),proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
+async def clone_vm(host: str, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for_clone), proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
     """
     Create a clone of an existing VM.
-    If no new VMID is provided, the next available ID on the host will be automatically assigned.
+    Automatically assigns the next available ID if none is provided.
     """
-    
     if proxmox_vm.newid is None:
-        proxmox_vm.newid = proxmox_manager.get_next_vmid()
+        try:
+            proxmox_vm.newid = proxmox_manager.get_next_vmid()
+        except Exception as e:
+            raise ProxmoxAPIError(f"Failed to generate a new VMID on host {host}: {str(e)}")
+    else:
+        if proxmox_manager.is_vmid_used(proxmox_vm.newid):
+            raise ProxmoxAPIError(
+                f"Conflict: VMID {proxmox_vm.newid} is already in use on host {host}."
+            )
 
-    return proxmox_vm.clone_vm()
+    try:
+        logging.info(f"Cloning VM {proxmox_vm.template_vm} to new ID {proxmox_vm.newid} on {host}...")
+        
+        result = proxmox_vm.clone_vm()
+        
+        return {
+            "message": "Cloning process started successfully",
+            "vmid": proxmox_vm.newid,
+            "task_id": result
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        if "not exist" in error_msg.lower():
+             raise ProxmoxResourceNotFoundError(
+                 resource_type="Template", 
+                 resource_id=str(proxmox_vm.template_vm), 
+                 host=host
+             )
+        
+        raise ProxmoxAPIError(f"Cloning failed: {error_msg}")

@@ -4,7 +4,9 @@ class ProxfleetError(Exception):
 
 class ProxmoxAPIError(ProxfleetError):
     """Raised when the Proxmox API returns an unexpected error code."""
-    pass
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 class ProxmoxConnectionError(ProxfleetError):
     """"""
@@ -49,3 +51,4 @@ class ProxmoxInvalidTokenError(ProxfleetError):
         self.token_id = token_id
         self.message = f"Invalid or incomplete token data for host '{host}' (ID: {token_id})."
         super().__init__(self.message)
+
