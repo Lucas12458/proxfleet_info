@@ -13,7 +13,7 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
   const [filters, setFilters] = useState({});
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState({ keyToSort: "name", direction: "asc" });
+  const [sort, setSort] = useState({ keyToSort: "vmid", direction: "asc" });
   const [vmName, setVmName] = useState("");
   const [showInput, setShowInput] = useState(false);
   const [availableServers, setAvailableServers] = useState([]);

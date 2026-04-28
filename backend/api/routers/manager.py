@@ -11,11 +11,9 @@ import yaml
 from pathlib import Path
 
 dotenv.load_dotenv()
-logging.basicConfig(level=logging.DEBUG)
 
-admin_user = os.getenv("PROXMOX_USER")
-admin_pass = os.getenv("PROXMOX_PASSWORD")
-
+log_level_str = os.getenv("LOG", "INFO").upper()
+logging.basicConfig(level=log_level_str)
 
 class GroupCreate(BaseModel):
     comment:str = ""
@@ -79,8 +77,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # path to the yaml file
 CONFIG_PATH = BASE_DIR / "config.yaml"
-
-app = FastAPI()
 
 @router.get("/servers")
 async def get_servers():

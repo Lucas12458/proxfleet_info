@@ -1,6 +1,8 @@
 import logging
 import time
+import concurrent.futures
 from proxmoxer import ProxmoxAPI
+from proxfleet.proxmox_vm import ProxmoxVM
 
 
 class ProxmoxManager:
@@ -15,6 +17,7 @@ class ProxmoxManager:
         verify_ssl: verify SSL certificates (default: True)
         """
         self._node_name = None # On prépare une variable vide
+        self.user = proxmox_user
         if use_token:
             if not token_name or not token_value:
                 logging.error("Token authentication requires both 'token_name' and 'token_value'")
@@ -25,6 +28,7 @@ class ProxmoxManager:
                 raise ValueError("Password authentication requires 'proxmox_password'")
 
         self.host = proxmox_host
+        self.user = proxmox_user
         if use_token:
             logging.debug(f"Connecting to {proxmox_host} using token authentication (user: {proxmox_user})")
             self.proxmox = ProxmoxAPI(proxmox_host, user=proxmox_user, token_name=token_name, token_value=token_value, verify_ssl=verify_ssl)
@@ -35,9 +39,9 @@ class ProxmoxManager:
     
 
     def get_node_name(self):
-        """Récupère le nom du nœud une seule fois et le stocke."""
+        """Fetches the node name once and caches it."""
         if not self._node_name:
-            # Premier appel : on interroge le serveur
+            # First call: query the server
             nodes = self.proxmox.nodes.get()
             if nodes:
                 self._node_name = nodes[0]["node"]
@@ -45,17 +49,73 @@ class ProxmoxManager:
     
     def list_vms(self):
         """
-        List all VMs on the Proxmox server.
-        Each server has only one node.
+        List all VMs on the Proxmox server and fetch IPs only for owned VMs.
         """
         node = self.get_node_name()
-        return self.proxmox.nodes(node).qemu.get()
+        
+        # 1. Fetch all VMs visible to the user on the node
+        vms = self.proxmox.nodes(node).qemu.get()
 
-    def list_users(self):
+        # 2. Retrieve the IDs of the VMs that the user actually has rights to (via the pool)
+        owned_vmids = set()
+        try:
+            pool_data = self.proxmox.pools(self.user).get()
+            owned_vmids = {
+                member["vmid"] for member in pool_data.get("members", []) 
+                if member.get("type") == "qemu"
+            }
+        except Exception:
+            # If the user does not have read access to the pool, the set remains empty
+            pass
+
+        def process_vm(vm):
+            vmid = vm.get("vmid")
+            
+            # 3. Double condition: VM is running AND present in the authorized pool
+            if vm.get("status") == "running" and vmid in owned_vmids:
+                try:
+                    proxmox_vm = ProxmoxVM(manager=self, vmid=vmid)
+                    vm["ip"] = proxmox_vm.management_ip()
+                except Exception:
+                    vm["ip"] = None
+            else:
+                vm["ip"] = None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            list(executor.map(process_vm, vms))
+
+        return vms
+    
+    def list_users(self, full: bool = False, enabled: bool = None):
         """
         List all users on the Proxmox server.
         """
-        return self.proxmox.access.users.get()
+        params = {}
+        if full:
+            params['full'] = 1
+        if enabled is not None:
+            params['enabled'] = 1 if enabled else 0
+            
+        return self.proxmox.access.users.get(**params)
+    
+
+    def get_user_tokens(self, userid: str):
+        """
+        List all API tokens for a specific user.
+        """
+        try:
+            return self.proxmox.access.users(userid).token.get()
+        except Exception as e:
+            raise Exception(f"Failed to fetch tokens for user {userid}: {str(e)}")
+
+    def delete_user_token(self, userid: str, tokenid: str):
+        """
+        Delete a specific API token for a user.
+        """
+        try:
+            return self.proxmox.access.users(userid).token(tokenid).delete()
+        except Exception as e:
+            raise Exception(f"Failed to delete token {tokenid} for user {userid}: {str(e)}")
     
     def list_pools(self):
         """
@@ -475,3 +535,15 @@ class ProxmoxManager:
         except Exception as e:
             logging.error(f"Unable to retrieve next available VMID: {e}")
             return None
+        
+    def is_vmid_used(self, vmid: int) -> bool:
+        """Check if a VMID is already assigned on the cluster."""
+        try:
+            nodes = self.proxmox.nodes.get()
+            for node in nodes:
+                vms = self.proxmox.nodes(node['node']).qemu.get()
+                if any(vm['vmid'] == int(vmid) for vm in vms):
+                    return True
+            return False
+        except:
+            return True 

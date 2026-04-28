@@ -16,8 +16,10 @@ class CSVWrite(BaseModel):
     rows : list[dict]
     field_names : list[str]
     
+dotenv.load_dotenv()
 
-logging.basicConfig(level=logging.DEBUG)
+log_level_str = os.getenv("LOG", "INFO").upper()
+logging.basicConfig(level=log_level_str)
 
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/data"))
 

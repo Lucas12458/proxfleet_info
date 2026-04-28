@@ -1,22 +1,21 @@
 import ipaddress
 import logging
-from proxfleet.proxmox_manager import ProxmoxManager
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from proxfleet.proxmox_manager import ProxmoxManager
 
 
 class ProxmoxVM:
-    def __init__(self, proxmox_host, proxmox_user, proxmox_password=None, vmid=0, use_token=False, token_name=None, token_value=None):
+    def __init__(self, manager: 'ProxmoxManager', vmid=0):
         """
-        proxmox_host: Proxmox server hostname or IP
-        proxmox_user: user@pam (e.g., 'root@pam')
-        proxmox_password: password for classic authentication
+        manager: An instance of ProxmoxManager class
         vmid: VM ID
-        use_token: if True, use token authentication instead of password
-        token_name: API token name (required if use_token=True)
-        token_value: API token secret (required if use_token=True)
-        ipv4_vm: detected management IPv4 address
-        net0_vm / net1_vm: network bridges (e.g. vmbr140)
         """
+        self.manager = manager  
         self.vmid = int(vmid)
+        
         self.newid = int()
         self.name_vm = str()
         self.pool_vm = str()
@@ -24,7 +23,6 @@ class ProxmoxVM:
         self.status_vm = str()
         self.storage_vm = str()
         self.ipv4_vm = str()
-        self.manager = ProxmoxManager(proxmox_host, proxmox_user, proxmox_password, use_token=use_token, token_name=token_name, token_value=token_value)
 
     def start(self):
         """
@@ -173,20 +171,33 @@ class ProxmoxVM:
             logging.error(f"Unable to retrieve agent status for VM {self.vmid}: {e}")
             raise RuntimeError(f"Unable to check if QEMU Agent is enable for VM {self.vmid} : {e}")
 
-    def ping_agent(self):
+    def ping_agent(self) -> bool:
         """
         Ping the QEMU Guest Agent inside the VM.
         vmid: self.vmid
         return: bool
         """
-        node = self.manager.proxmox.nodes.get()[0]["node"]
+        node = self.manager.get_node_name()
         logging.debug(f"Pinging QEMU Guest Agent for VM {self.vmid} on node {node}.")
         try:
             self.manager.proxmox.nodes(node).qemu(self.vmid).agent("ping").post()
             return True
         except Exception as e:
-            logging.error(f"Unable to ping agent for VM {self.vmid}: {e}")
-            raise RuntimeError(f"Unable to ping the QEMU Agent for VM {self.vmid} : {e}")
+           
+            logging.debug(f"Unable to ping agent for VM {self.vmid}: {e}")
+            return False
+        
+    def is_running(self) -> bool:
+        """
+        Check if the VM is currently powered on.
+        """
+        try:
+            node = self.manager.get_node_name()
+            status_info = self.manager.proxmox.nodes(node).qemu(self.vmid).status.current.get()
+            return status_info.get("status") == "running"
+        except Exception as e:
+            logging.error(f"Failed to retrieve status for VM {self.vmid}: {e}")
+            return False
 
     def address(self, addr_type=None):
         """
@@ -202,8 +213,16 @@ class ProxmoxVM:
         try:
             interfaces = self.manager.proxmox.nodes(node).qemu(self.vmid).agent("network-get-interfaces").get().get("result", [])
         except Exception as e:
-            logging.error(f"QEMU agent is not responding for VM {self.vmid}: {e}")
-            raise RuntimeError(f"Unable to get the network interfaces for VM {self.vmid} : {e}")
+            error_msg = str(e)
+            
+            if "403" in error_msg or "VM.Monitor" in error_msg:
+                print(f"Warning: Missing VM.Monitor permission for VM {self.vmid}.")
+                return []
+            elif "agent" in error_msg.lower() or "500" in error_msg:
+                return []
+            else:
+                print(f"Error retrieving network interfaces for VM {self.vmid}: {e}")
+                return []
 
         result = {}
         for interface in interfaces:
@@ -229,6 +248,17 @@ class ProxmoxVM:
         vmid: self.vmid
         return: str
         """
+
+        if not self.is_running():
+            logging.debug(f"VM {self.vmid} is not running. Skipping IPv4 retrieval.")
+            return ""
+
+       
+        if not self.ping_agent():
+            logging.warning(f"QEMU Agent not responding on VM {self.vmid}. Cannot get IP.")
+            return ""
+        
+
         subnets = [
             ipaddress.ip_network("192.168.140.0/23"),
             ipaddress.ip_network("192.168.170.0/24"),
@@ -238,7 +268,7 @@ class ProxmoxVM:
         interfaces = self.address("ipv4")
         if not interfaces:
             logging.error(f"No network interfaces detected for VM {self.vmid}.")
-            raise RuntimeError(f)
+            raise RuntimeError(f"No network interfaces detected for VM {self.vmid}")
 
         for subnet in subnets:
             for _, info in interfaces.items():

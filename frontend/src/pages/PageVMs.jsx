@@ -27,22 +27,27 @@ export default function PageVMs({ user }) {
   };
 
   // Fonction principale de chargement des VMs
-  const loadAllVMs = useCallback(async () => {
-  if (!user) return; // Securite : on ne charge rien si pas connecte
+const loadAllVMs = useCallback(async () => {
+  if (!user) return;
   
   setLoading(true);
   try {
-    // 1. On recupere la liste de tous les serveurs disponibles
-    const resServers = await fetch(`${API_BASE}/servers`, { credentials: "include" });
-    if (!resServers.ok) throw new Error("Impossible de recuperer les serveurs");
-    const dataServers = await resServers.json();
-    const serverNames = dataServers.map(s => s.host);
-
-    // 2. On regarde ce que l'utilisateur avait choisi au login
+    // 1. On regarde d'abord le choix de l'utilisateur
     const savedServer = localStorage.getItem("server") || "all";
-    const targetServers = savedServer === "all" ? serverNames : [savedServer];
+    let targetServers = [];
 
-    // 3. PARALLELISATION : On crée un tableau de promesses
+    if (savedServer === "all") {
+      // SI "all" : On doit demander la liste des serveurs au backend
+      const resServers = await fetch(`${API_BASE}/servers`, { credentials: "include" });
+      if (!resServers.ok) throw new Error("Impossible de récupérer la liste des serveurs");
+      const dataServers = await resServers.json();
+      targetServers = dataServers.map(s => s.host);
+    } else {
+      // SI un serveur précis : Pas besoin d'appeler /servers, on utilise directement le nom
+      targetServers = [savedServer];
+    }
+
+    // 2. PARALLELISATION : On ne lance les requêtes que pour les serveurs cibles
     const fetchPromises = targetServers.map(async (srv) => {
       try {
         const res = await fetch(`${API_BASE}/server/${srv}/vm`, { credentials: "include" });
@@ -51,23 +56,20 @@ export default function PageVMs({ user }) {
           return { server: srv, vms: data };
         }
       } catch (error) {
-        // En cas d'erreur sur un serveur specifique, on retourne null
-        // (Tu pourrais appeler addLog ici si tu veux notifier l'utilisateur)
-        console.error(`Erreur de connexion au serveur ${srv}:`, error);
+        console.error(`Erreur sur ${srv}:`, error);
+        addLog(`Erreur de connexion au serveur ${srv}`, "error");
       }
       return null; 
     });
 
-    // 4. On attend que TOUTES les requetes soient terminees
     const rawResults = await Promise.all(fetchPromises);
-
-    // 5. On nettoie le tableau en enlevant les "null" (les serveurs qui ont echoue)
     const validResults = rawResults.filter(result => result !== null);
 
     setAllServersVMs(validResults);
 
   } catch (error) {
-    console.error("Erreur globale lors du chargement des VMs :", error);
+    console.error("Erreur globale :", error);
+    addLog(error.message, "error");
   } finally {
     setLoading(false);
   }

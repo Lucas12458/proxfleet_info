@@ -86,6 +86,7 @@ export default function PageAuth({ onLogin }) {
         return;
       }
 
+      localStorage.setItem("server", server);
       // ON REMPLACE : localStorage.setItem("hasLoggedOnce", "true");
       // PAR : Le stockage des infos réelles pour le refresh
       const userInfo = data.user_info || { nom: username, role: "etudiant" };

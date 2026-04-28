@@ -8,9 +8,22 @@ export default function Navbar({ user, onLogout }) {
 
   const isAdmin = user?.role === "admin";
 
-  const handleLogout = () => {
-    onLogout();
-    navigate("/"); // Redirige vers la page d'accueil
+const handleLogout = async () => {
+    const base = import.meta.env.VITE_BASE_PATH || '/app2';
+    const routerBase = base.endsWith('/') && base.length > 1 ? base.slice(0, -1) : base;
+
+    try {
+      await fetch(`${routerBase}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include" 
+      });
+    } catch (error) {
+      console.error("Erreur lors de la deconnexion serveur :", error);
+    } finally {
+      navigate("/");
+      localStorage.removeItem("server");
+      onLogout();
+    }
   };
 
   return (
