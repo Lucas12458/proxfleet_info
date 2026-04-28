@@ -108,33 +108,57 @@ class ProxmoxCSV:
 
     def read_header(self, delimiter: str = ";"):
         """
-        Returns the header (column names) of the CSV file.
+        Returns the header (column names) of the CSV file, excluding empty columns.
         return: list[str]
         """
         logging.debug(f"Getting header from CSV file: {self.csv_path} (delimiter='{delimiter}')")
         try:
             with open(self.csv_path, newline="", encoding="utf-8-sig") as f:
                 reader = csv.reader(f, delimiter=delimiter)
-                header = next(reader)
-                return header
+                raw_header = next(reader)
+                
+                # Keep only columns that are not empty after removing leading/trailing whitespaces
+                filtered_header = [col for col in raw_header if col.strip()]
+                
+                return filtered_header
+                
         except FileNotFoundError:
             raise
         except Exception as e:
             logging.error(f"Failed to read header from {self.csv_path}: {e}")
             raise RuntimeError("Unable to read headers")
-
+        
     def read_csv(self, delimiter: str = ";"):
         """
-        Reads the CSV file using the specified delimiter.
+        Reads the CSV file using the specified delimiter, ignoring empty columns and empty rows.
         return: list[dict]
         """
         logging.debug(f"Reading CSV file: {self.csv_path} (delimiter='{delimiter}')")
         try:
+            # Retrieve the clean, filtered headers
+            clean_headers = self.read_header(delimiter=delimiter)
+            
             with open(self.csv_path, newline="", encoding="utf-8-sig") as f:
-                reader = csv.DictReader(f, delimiter=delimiter)
-                rows = list(reader)
+                reader = csv.reader(f, delimiter=delimiter)
+                next(reader, None)  # Skip the raw header row safely
+                
+                rows = []
+                for row in reader:
+                    # Skip completely empty rows or rows containing only empty spaces/delimiters
+                    if not row or all(cell.strip() == "" for cell in row):
+                        continue
+                        
+                    # Map only the values that correspond to a valid header
+                    row_dict = {
+                        clean_headers[i]: value 
+                        for i, value in enumerate(row) 
+                        if i < len(clean_headers)
+                    }
+                    rows.append(row_dict)
+                    
                 logging.debug(f"Read {len(rows)} rows from {self.csv_path}")
                 return rows
+                
         except FileNotFoundError:
             raise
         except Exception as e:
