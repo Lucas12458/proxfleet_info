@@ -3,9 +3,6 @@ import "../styles/userTable.css";
 
 export default function UsersTable() {
   const [files, setFiles] = useState([]); // Nommé plus logiquement 'setFiles'
-  
-  //const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
-  //const API_BASE = `${BASE}api`;
   const API_BASE = `${import.meta.env.BASE_URL}api`;
 
 
@@ -28,7 +25,7 @@ export default function UsersTable() {
         setFiles(data.filenames || []);
       })
       .catch(err => console.error("Erreur lors du fetch :", err));
-  }, []);
+  }, [API_BASE]);
 
   return (
     <div className="filesNames">

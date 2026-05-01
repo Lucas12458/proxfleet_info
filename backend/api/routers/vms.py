@@ -1,6 +1,7 @@
 from proxfleet.proxmox_manager import ProxmoxManager
 from proxfleet.proxmox_vm import ProxmoxVM
 from proxfleet.proxmox_authentication import ProxmoxAuth
+from proxfleet.bulk_vm_management import clone_csv
 from api.routers import auth
 from api.exceptions.exceptions import (
     ProxmoxUnauthorizedError,
@@ -9,8 +10,13 @@ from api.exceptions.exceptions import (
     ProxmoxAPIError,
     ProxmoxResourceNotFoundError
 )
-from fastapi import Depends, APIRouter, HTTPException
+from fastapi import Depends, APIRouter, HTTPException,status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel,Field
+from pathlib import Path
+from typing import Annotated
+
+
 import os
 import dotenv
 import logging
@@ -19,6 +25,14 @@ dotenv.load_dotenv()
 
 log_level_str = os.getenv("LOG", "INFO").upper()
 logging.basicConfig(level=log_level_str)
+
+EXPORT_DIR = Path(os.getenv("EXPORT_DIR", "/app/export"))
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# path to the yaml file
+CONFIG_PATH = BASE_DIR / "config.yaml" 
+
+
 
 class VMAction(BaseModel):
     action: str  # start, stop, shutdown, reboot, delete
@@ -102,12 +116,12 @@ def get_proxmox_vm(host: str, vmid: int, session=Depends(auth.get_current_sessio
             reason="Access to this host is not permitted in your current session."
         )
 
-    token = get_token_for_host(host, session)
+    
     
     try:
         manager = get_proxmox_manager(host=host, session=session)
         return ProxmoxVM(manager=manager, vmid=vmid)
-    except Exception as e:
+    except Exception:
         raise ProxmoxConnectionError(host=host)
 
 def get_proxmox_vm_for_clone(host: str, vm_data: CloneVMRequest, session=Depends(auth.get_current_session)) -> ProxmoxVM:
@@ -148,7 +162,7 @@ router = APIRouter(tags=["Vms"])
 
 
 @router.get("/server/{host}/vm")
-async def get_vms(host: str, proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_vms(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)],host: str):
     """
     List all Virtual Machines available on the specified Proxmox host.
     """
@@ -160,7 +174,7 @@ async def get_vms(host: str, proxmox_manager: ProxmoxManager = Depends(get_proxm
     
     
 @router.get("/server/{host}/vm/{vmid}")
-async def get_vm_status(host: str, vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
+async def get_vm_status(host: str, vmid: int, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)]):
     """
     Retrieve the current power status and QEMU guest agent status for a specific VM.
     """
@@ -177,7 +191,7 @@ async def get_vm_status(host: str, vmid: int, proxmox_vm: ProxmoxVM = Depends(ge
 
 
 @router.post("/server/{host}/vm/{vmid}/action")
-async def vm_action(vmid: int, action_data: VMAction, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
+async def vm_action(vmid: int, action_data: VMAction, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)]):
     """
     Execute a power or lifecycle action on the VM.
     
@@ -201,7 +215,7 @@ async def vm_action(vmid: int, action_data: VMAction, proxmox_vm: ProxmoxVM = De
 
     
 @router.get("/server/{host}/vm/{vmid}/network")
-async def get_vm_network(host: str, vmid: int, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm)):
+async def get_vm_network(host: str, vmid: int, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)]):
     """
     Fetch network interface configurations and the primary management IP address of the VM.
     """
@@ -221,7 +235,7 @@ async def get_vm_network(host: str, vmid: int, proxmox_vm: ProxmoxVM = Depends(g
 
 
 @router.post("/server/{host}/vm/clone")
-async def clone_vm(host: str, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for_clone), proxmox_manager: ProxmoxManager = Depends(get_proxmox_manager)):
+async def clone_vm(host: str, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)], proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     """
     Create a clone of an existing VM.
     Automatically assigns the next available ID if none is provided.
@@ -258,3 +272,46 @@ async def clone_vm(host: str, proxmox_vm: ProxmoxVM = Depends(get_proxmox_vm_for
              )
         
         raise ProxmoxAPIError(f"Cloning failed: {error_msg}")
+    
+@router.post("/server/{host}/vm/clone-csv")
+async def clone_csv_endpoint(host: str, csv_path: str, session: Annotated[dict,Depends(auth.get_current_session)]):
+    """
+    Endpoint to trigger VM cloning from a CSV file.
+    Executes the heavy clone operation in a threadpool to avoid blocking the event loop.
+    """
+    try:
+        file_path = (EXPORT_DIR / csv_path).resolve()
+        file_path.relative_to(EXPORT_DIR.resolve())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid CSV file path. Directory traversal is forbidden."
+        )
+
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"CSV file '{csv_path}' not found on server."
+        )
+
+    token = get_token_for_host(host=host, session=session)
+    user = session.get("user")
+
+    try:
+        results = await run_in_threadpool(
+            clone_csv,
+            input_csv=str(file_path),
+            config_yaml=str(CONFIG_PATH),
+            proxmox_user=user,
+            use_token=True,
+            token_name=token.get("token_name"),
+            token_value=token.get("token_value")
+        )
+        return {"message": "Cloning process completed.", "results": results}
+        
+    except Exception as e:
+        logging.error(f"Cloning failed for {csv_path}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal error during cloning process."
+        )

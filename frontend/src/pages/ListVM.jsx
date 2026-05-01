@@ -1,14 +1,16 @@
 import "../styles/listvm.css";
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from 'react';
 import { ClipLoader } from "react-spinners";
 
-export default function ListVM({ server, vms, onLogout, allServersData, isMulti, onRefresh, addLog }) {
-  const header = isMulti
-    ? ["server", "vmid", "name", "status", "actions"]
-    : ["vmid", "name", "status", "actions"];
+const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
+const API_BASE = `${BASE}api`;
 
-  const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
-  const API_BASE = `${BASE}api`;
+export default function ListVM({ server, vms, allServersData, isMulti, onRefresh, addLog }) {
+  const header = useMemo(() => {
+    return isMulti
+      ? ["server", "vmid", "name", "status", "actions"]
+      : ["vmid", "name", "status", "actions"];
+  }, [isMulti]);
 
   const [filters, setFilters] = useState({});
   const [showFilters, setShowFilters] = useState(false);
@@ -18,7 +20,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
   const [showInput, setShowInput] = useState(false);
   const [availableServers, setAvailableServers] = useState([]);
   const [createServer, setCreateServer] = useState(server || "");
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [actionLoading, setActionLoading] = useState({});
 
   // ─── Sélection multiple ────────────────────────────────────────────────────
@@ -35,34 +36,53 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         const hosts = data.map(s => s.host);
         setAvailableServers(hosts);
         if (!server && hosts.length > 0) setCreateServer(hosts[0]);
-      } catch {}
+      } catch (err) {
+        console.error("Erreur de chargement des serveurs :", err);
+      }
     }
     fetchServers();
-  }, []);
+  }, [server]);
 
-  const buildList = (data) => {
+  // Dérivation de l'état principal
+  const vmList = useMemo(() => {
+    const data = isMulti ? allServersData : vms;
     if (isMulti && data) {
       return data.flatMap(srv => srv.vms.map(vm => ({ ...vm, server: srv.server })));
     }
     return data || [];
-  };
+  }, [isMulti, allServersData, vms]);
 
-  const [vmList, setVmList] = useState(buildList(isMulti ? allServersData : vms));
 
-  useEffect(() => {
-    setVmList(buildList(isMulti ? allServersData : vms));
-    setSelectedVMs(new Set()); // reset sélection au refresh
-  }, [vms, allServersData, isMulti]);
-  const filtered = getSortedArray(
-    vmList.filter(vm => {
+
+  const filtered = useMemo(() => {
+    // 1. Étape de filtrage
+    const filteredArray = vmList.filter(vm => {
       const globalMatch = vm.name?.toLowerCase().includes(search.toLowerCase());
       const columnMatch = header.filter(h => h !== "actions").every(h => {
         const val = filters[h] || "";
-        return !val || String(vm[h] ?? "").toLowerCase().includes(val.toLowerCase());
+        
+        // eslint-disable-next-line security/detect-object-injection
+        const vmValue = vm[h];
+        return !val || String(vmValue ?? "").toLowerCase().includes(val.toLowerCase());
       });
       return globalMatch && columnMatch;
-    })
-  );
+    });
+
+    // 2. Étape de tri
+    const key = sort.keyToSort;
+    if (key === "actions") return filteredArray;
+
+    return filteredArray.sort((a, b) => {
+      // eslint-disable-next-line security/detect-object-injection
+      const aVal = a[key];
+      // eslint-disable-next-line security/detect-object-injection
+      const bVal = b[key];
+      
+      return sort.direction === "asc" 
+        ? (aVal > bVal ? 1 : -1) 
+        : (aVal > bVal ? -1 : 1);
+    });
+  }, [vmList, search, header, filters, sort]); // sort est bien dans les dépendances !
 
   // ─── Helpers sélection ────────────────────────────────────────────────────
   const vmKey = (vm) => `${vm.server || server}-${vm.vmid}`;
@@ -109,7 +129,9 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
       if (!response.ok) { alert(`Erreur lors de la création : serveur ${targetServer} indisponible`); return; }
       await response.json();
       setTimeout(() => onRefresh(), 4000);
-    } catch { alert("Erreur réseau lors de la création de la VM"); }
+    } catch { 
+      alert("Erreur réseau lors de la création de la VM"); 
+    }
     setVmName("");
     setShowInput(false);
   }
@@ -152,6 +174,7 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
       setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
       onRefresh();
     } catch (err) {
+      console.error(err);
       setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
     }
   }
@@ -159,13 +182,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
   function handleHeaderClick(h) {
     setSort({ keyToSort: h, direction: h === sort.keyToSort ? (sort.direction === "asc" ? "desc" : "asc") : "asc" });
   }
-
-  function getSortedArray(arr) {
-    const key = sort.keyToSort;
-    if (key === "actions") return arr;
-    return [...arr].sort((a, b) => sort.direction === "asc" ? (a[key] > b[key] ? 1 : -1) : (a[key] > b[key] ? -1 : 1));
-  }
-
 
   const Arrow = ({ col }) => {
     if (sort.keyToSort !== col) return null;
@@ -232,7 +248,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
         <table className="vm-table">
           <thead>
             <tr>
-              {/* Case "tout sélectionner" */}
               <th style={{ width: 36, textAlign: "center" }}>
                 <input
                   type="checkbox"
@@ -281,7 +296,6 @@ export default function ListVM({ server, vms, onLogout, allServersData, isMulti,
                 key={vmKey(vm)}
                 className={selectedVMs.has(vmKey(vm)) ? "row-selected" : ""}
               >
-                {/* Case individuelle */}
                 <td style={{ textAlign: "center" }}>
                   <input
                     type="checkbox"

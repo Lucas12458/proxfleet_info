@@ -9,6 +9,7 @@ from api.exceptions.exceptions import (
     ProxmoxInvalidTokenError, 
     ProxfleetError
 )
+from typing import Annotated
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from pathlib import Path
@@ -180,17 +181,18 @@ async def login_for_access_token(data: LoginRequest):
         }
     })
     response.set_cookie(
-        key="session_cookie",
-        value=session_id,
-        max_age=SESSION_EXPIRE_SECONDS,
-        httponly=True,  
-        secure=os.getenv("ENVIRONMENT") == "production"
+    key="session_cookie",
+    value=session_id,
+    max_age=SESSION_EXPIRE_SECONDS,
+    httponly=True,  
+    secure=os.getenv("ENV") != "development", 
+    samesite="lax"                      
     )
     return response
 
 
 @router.post("/auth/logout")
-async def logout(response: Response,session: dict = Depends(get_current_session),session_cookie: str = Depends(api_cookie)):
+async def logout(response: Response,session: Annotated[dict,Depends(get_current_session)],session_cookie: Annotated[str ,Depends(api_cookie)]):
     """
     Perform a full logout by deleting remote tokens and clearing local session.
     """

@@ -1,7 +1,10 @@
 from proxfleet.proxmox_manager import ProxmoxManager
 from proxfleet.proxmox_etu import ProxmoxEtu
+from typing import Annotated
 from api.routers import auth
+from api.utils.roles import add_admin_user
 from fastapi import Depends,APIRouter,HTTPException
+from api.exceptions.exceptions import AdminConfigurationError
 from pydantic import BaseModel
 import os
 import dotenv
@@ -57,11 +60,11 @@ proxmox_pass = os.getenv("PROXMOX_PASSWORD")
 
 
 @router.get("/server/{host}/users/")
-async def get_users(proxmox_manager :ProxmoxManager = Depends(get_proxmox_manager)):
+async def get_users(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     return proxmox_manager.list_users()
 
 @router.post("/server/{host}/user/")
-async def create_user(userid:str,user_data:UserCreate,proxmox_manager :ProxmoxManager = Depends(get_proxmox_manager)):
+async def create_user(userid:str,user_data:UserCreate,proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     return proxmox_manager.create_user(userid=userid,realm=user_data.realm,comment=user_data.comment)
     
 @router.post("/server/{host}/student/")
@@ -78,9 +81,22 @@ async def create_student(host:str,student_data:StudentCreate):
 
 
 @router.post("/server/{host}/group/{group}/user/{userid}")
-async def add_user_to_group(group:str,userid:str,proxmox_manager :ProxmoxManager = Depends(get_proxmox_manager)):
+async def add_user_to_group(group:str,userid:str,proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
    return proxmox_manager.add_user_to_group(userid,group)
 
 @router.delete("/server/{host}")
-async def delete_usmb_users(proxmox_manager :ProxmoxManager = Depends(get_proxmox_manager)):
+async def delete_usmb_users(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     return proxmox_manager.delete_usmb_users()
+
+@router.post("/server/{host}/user/{userid}/role")
+async def set_effective_role(host: str, userid: str):
+    """
+    Endpoint to grant admin rights to a user by adding them to the admins.json file.
+    Catches standard Python errors and raises the specific AdminConfigurationError.
+    """
+    try:
+        await add_admin_user(userid=userid)
+        return {"message": f"User {userid} successfully added to admins."}
+    except (ValueError, RuntimeError) as e:
+        logging.error(f"Role update failed for {userid}: {str(e)}")
+        raise AdminConfigurationError(userid=userid, details=str(e))

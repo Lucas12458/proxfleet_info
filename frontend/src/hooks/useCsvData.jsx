@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import {useCallback, useEffect, useState } from "react";
 
 export function useCsvData(apiBase = "/app2/api") {
   const [filenames, setFilenames] = useState([]);
@@ -7,16 +7,16 @@ export function useCsvData(apiBase = "/app2/api") {
   const [headers, setHeaders] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  function fetchFilenames() {
+  const fetchFilenames = useCallback(() => {
     fetch(`${apiBase}/csv/filenames`, { credentials: "include" })
       .then(res => res.json())
       .then(data => setFilenames(data.filenames || []))
       .catch(err => console.error(err));
-  }
-
-  useEffect(() => {
-    fetchFilenames();
   }, [apiBase]);
+
+useEffect(() => {
+  fetchFilenames();
+}, [fetchFilenames]);
 
   const loadFile = (filename) => {
     setLoading(true);

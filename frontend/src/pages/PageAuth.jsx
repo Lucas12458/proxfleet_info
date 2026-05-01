@@ -40,7 +40,7 @@ export default function PageAuth({ onLogin }) {
         if (!res.ok) return;
         const data = await res.json();
         setSERVERS(data.map(s => s.host));
-      } catch {}
+      } catch(error) {console.error("Erreur d'authentification :", error);}
     }
     fetchServers();
   }, [API_BASE]);

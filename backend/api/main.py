@@ -10,7 +10,9 @@ from api.exceptions.exceptions import (ProxmoxResourceNotFoundError,
                                        ProxmoxInvalidTokenError,
                                        ProxmoxAPIError,
                                        ProxmoxTaskTimeoutError,
-                                       ProxfleetError)
+                                       ProxfleetError,
+                                       AdminConfigurationError
+                                       )
 from pathlib import Path
 import os
 import logging
@@ -102,4 +104,14 @@ async def base_proxfleet_handler(request: Request, exc: ProxfleetError):
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc)}
+    )
+
+@app.exception_handler(AdminConfigurationError)
+async def admin_config_handler(request: Request, exc: AdminConfigurationError):
+    """
+    Handles AdminConfigurationError and returns the appropriate HTTP status code.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.message}
     )
