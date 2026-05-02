@@ -192,12 +192,18 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
 
   return (
     <>
-      <div className="vm-header">
-        <h2 className="vm-title">
-          {isMulti ? "VMs — Tous les serveurs" : `VMs du serveur ${server}`}
-        </h2>
-      </div>
-
+      <div className="vm-header breadcrumb-header">
+        <div className="breadcrumb">
+          <span className="breadcrumb-path">Machines Virtuelles</span>
+          <span className="breadcrumb-separator">/</span>
+          <h2 className="breadcrumb-current">
+            {isMulti ? "Vue globale" : server}
+          </h2>
+        </div>
+     </div>
+    
+    
+    
       <div className="toolbar-row">
         <div className="create-side">
           <button className="create-btn" onClick={onRefresh}>🔄 Refresh</button>
@@ -273,22 +279,29 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
               </th>
             </tr>
             {showFilters && (
-              <tr>
-                <th />
-                {header.map(h => (
-                  <th key={h} style={{ padding: "4px 8px", background: "#f0f4ff" }}>
-                    {h !== "actions" && (
-                      <input type="text" className="filter-input" placeholder="Filtrer..."
-                        value={filters[h] || ""}
-                        onChange={e => setFilters(prev => ({ ...prev, [h]: e.target.value }))}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    )}
-                  </th>
-                ))}
-                <th style={{ background: "#000000" }} />
-              </tr>
-            )}
+  <tr className="filter-row">
+    {/* Première cellule (checkbox) */}
+    <th className="filter-cell-bg" /> 
+    
+    {header.map(h => (
+      <th key={h} className="filter-cell-bg" style={{ padding: "4px 8px" }}>
+        {h !== "actions" && (
+          <input 
+            type="text" 
+            className="filter-input" 
+            placeholder="Filtrer..."
+            value={filters[h] || ""}
+            onChange={e => setFilters(prev => ({ ...prev, [h]: e.target.value }))}
+            onClick={e => e.stopPropagation()}
+          />
+        )}
+      </th>
+    ))}
+
+    {/* Dernière cellule (actions) */}
+    <th className="filter-cell-bg" />
+  </tr>
+)}
           </thead>
           <tbody>
             {filtered.map(vm => (

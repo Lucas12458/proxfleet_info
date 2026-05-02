@@ -53,16 +53,57 @@
   justify-content: center; /* Centre le contenu horizontalement */
 }
 
-/* On cache purement et simplement les zones de gauche et droite pour éviter tout décalage */
 .navbar-center-only .navbar-links,
 .navbar-center-only .navbar-auth {
   display: none;
 }
 
 
+/* Conteneur pour regrouper Toggle + Auth */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Style du bouton de thème */
+.theme-toggle-btn {
+  background: none;
+  border: 1px solid var(--border-color); 
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--bg-table-stripe); 
+  border-color: var(--table-header);
+  color: var(--table-header);
+}
+
+.theme-toggle-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle-btn:active svg {
+  transform: scale(0.9);
+}
+
+/* En mode sombre, on change le hover du bouton */
+[data-theme='dark'] .theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* S'assurer que le nom d'utilisateur reste lisible */
 .user-name {
-  font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-main);
+  font-weight: 500;
+  margin-right: 10px;
 }
 
 .login-btn {

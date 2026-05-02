@@ -25,6 +25,7 @@ dotenv.load_dotenv()
 log_level_str = os.getenv("LOG", "INFO").upper()
 logging.basicConfig(level=log_level_str)
 
+EXPORT_DIR = Path(os.getenv("EXPORT_DIR", "/app/export"))
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/data"))
 
 ALLOWED_TYPES = {
@@ -36,10 +37,18 @@ def get_proxmox_csv(csv_path: str) -> ProxmoxCSV:
     """
     Retrieves a ProxmoxCSV instance securely.
     Extracts only the filename to prevent directory traversal attacks.
+    Checks both UPLOAD_DIR and EXPORT_DIR.
     """
     safe_filename = Path(csv_path).name
+    
+    # 1. On cherche d'abord dans le dossier d'upload classique
     file_path = UPLOAD_DIR / safe_filename
     
+    # 2. Si le fichier n'y est pas, on cherche dans le dossier d'export (VMs)
+    if not file_path.exists():
+        file_path = EXPORT_DIR / safe_filename
+        
+    # 3. Si le fichier est introuvable dans les deux dossiers, on lève la 404
     if not file_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
@@ -135,6 +144,39 @@ async def create_upload_csv(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to upload CSV"
         )
+    
+
+@router.post("/csv/upload-vm", status_code=status.HTTP_201_CREATED)
+async def create_upload_vms(
+    csv: Annotated[UploadFile, File(...)], 
+    session: Annotated[dict, Depends(auth.verify_admin_rights)]
+):
+    """
+    Endpoint to upload a new CSV file.
+    Restricted to administrators. Validates file type and prevents path traversal.
+    """
+    if csv.content_type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, 
+            detail="Invalid file type"
+        )
+        
+    try:
+        safe_filename = Path(csv.filename).name
+        file_path = EXPORT_DIR / safe_filename
+
+        if file_path.exists():
+             raise HTTPException(status_code=409, detail="Le fichier existe déjà")
+
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(csv.file, buffer)
+
+        # MODIFICATION ICI : On renvoie 'filename' pour correspondre au frontend
+        return {"filename": safe_filename}
+        
+    except Exception as e:
+        logging.error(f"Erreur upload : {str(e)}")
+        raise HTTPException(status_code=500, detail="Impossible d'uploader le CSV")
 
 @router.get("/csv/read")
 async def read_csv(proxmox_csv: Annotated[ProxmoxCSV, Depends(get_proxmox_csv)]):
@@ -273,6 +315,19 @@ async def list_csv_files():
     try:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         files = [f.name for f in UPLOAD_DIR.iterdir() if f.is_file() and f.suffix == ".csv"]
+        return {"filenames": files}
+    except Exception as e:
+        logging.error(f"Failed to list CSV files: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Unable to list files"
+        )
+    
+@router.get("/csv/VMsFilenames")
+async def list_vms_files():
+    try:
+        EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+        files = [f.name for f in EXPORT_DIR.iterdir() if f.is_file() and f.suffix == ".csv"]
         return {"filenames": files}
     except Exception as e:
         logging.error(f"Failed to list CSV files: {str(e)}")

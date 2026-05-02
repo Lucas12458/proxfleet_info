@@ -3,6 +3,7 @@ from proxfleet.proxmox_vm import ProxmoxVM
 from proxfleet.proxmox_authentication import ProxmoxAuth
 from proxfleet.bulk_vm_management import clone_csv
 from api.routers import auth
+from api.state import clone_jobs
 from api.exceptions.exceptions import (
     ProxmoxUnauthorizedError,
     ProxmoxInvalidTokenError,
@@ -10,13 +11,13 @@ from api.exceptions.exceptions import (
     ProxmoxAPIError,
     ProxmoxResourceNotFoundError
 )
-from fastapi import Depends, APIRouter, HTTPException,status
+from fastapi import Depends, APIRouter, HTTPException,status,BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel,Field
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated,Dict,Any
 
-
+import uuid
 import os
 import dotenv
 import logging
@@ -43,6 +44,7 @@ class CloneVMRequest(BaseModel):
     template : int
     pool: str
     storage: str 
+
 
 def get_token_for_host(host: str, session: dict) -> dict:
     """
@@ -155,6 +157,27 @@ def get_proxmox_vm_for_clone(host: str, vm_data: CloneVMRequest, session=Depends
         raise
     except Exception as e:
         raise ProxmoxAPIError(f"Failed to initialize clone request for host {host}: {str(e)}")
+
+
+# Dans ton fichier de routes FastAPI
+def background_clone_task(job_id, file_path, config_path, user, all_tokens):
+    with open(file_path, 'r') as f:
+        total_vms = sum(1 for _ in f) - 1
+    
+    clone_jobs[job_id] = {"status": "running", "current": 0, "total": total_vms}
+    
+    try:
+        clone_csv(
+            input_csv=file_path,
+            config_yaml=config_path,
+            proxmox_user=user,
+            tokens_dict=all_tokens,
+            job_id=job_id
+        )
+        clone_jobs[job_id]["status"] = "completed"
+    except Exception:
+        clone_jobs[job_id]["status"] = "error"
+
 
 
 router = APIRouter(tags=["Vms"])
@@ -273,45 +296,59 @@ async def clone_vm(host: str, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmo
         
         raise ProxmoxAPIError(f"Cloning failed: {error_msg}")
     
-@router.post("/server/{host}/vm/clone-csv")
-async def clone_csv_endpoint(host: str, csv_path: str, session: Annotated[dict,Depends(auth.get_current_session)]):
-    """
-    Endpoint to trigger VM cloning from a CSV file.
-    Executes the heavy clone operation in a threadpool to avoid blocking the event loop.
-    """
+@router.post("/vm/clone-csv") # Route simplifiée pour le mode Bulk
+async def clone_csv_endpoint(
+    csv_name: str, # Reçu en query param
+    background_tasks: BackgroundTasks,
+    session: Annotated[dict, Depends(auth.verify_admin_rights)]
+):
     try:
-        file_path = (EXPORT_DIR / csv_path).resolve()
-        file_path.relative_to(EXPORT_DIR.resolve())
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid CSV file path. Directory traversal is forbidden."
-        )
+        # Résolution sécurisée du chemin
+        file_path = (EXPORT_DIR / csv_name).resolve()
+        if not str(file_path).startswith(str(EXPORT_DIR.resolve())):
+            raise HTTPException(status_code=400, detail="Chemin invalide")
+            
+        if not file_path.is_file():
+            raise HTTPException(status_code=404, detail="Fichier CSV introuvable")
 
-    if not file_path.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"CSV file '{csv_path}' not found on server."
-        )
+        # Récupération des tokens de tous les serveurs pour le mode Bulk
+        user = session.get("user")
+        all_tokens = session.get("servers", {}) # Dict { "host": {token_name, token_value} }
 
-    token = get_token_for_host(host=host, session=session)
-    user = session.get("user")
+        job_id = str(uuid.uuid4())
 
-    try:
-        results = await run_in_threadpool(
-            clone_csv,
-            input_csv=str(file_path),
-            config_yaml=str(CONFIG_PATH),
-            proxmox_user=user,
-            use_token=True,
-            token_name=token.get("token_name"),
-            token_value=token.get("token_value")
+        clone_jobs[job_id] = {
+        "status": "starting",
+        "current": 0, 
+        "total": 0
+        }   
+
+        # Lancement de la tâche de fond
+        background_tasks.add_task(
+            background_clone_task,
+            job_id=job_id,
+            file_path=str(file_path),
+            config_path=str(CONFIG_PATH),
+            user=user,
+            all_tokens=all_tokens # On passe tout le dictionnaire
         )
-        return {"message": "Cloning process completed.", "results": results}
+        
+        return {"job_id": job_id, "status": "started"}
         
     except Exception as e:
-        logging.error(f"Cloning failed for {csv_path}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal error during cloning process."
-        )
+        logging.error(f"Erreur lancement clone : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/vm/clone-csv/status/{job_id}")
+async def get_clone_status(
+    job_id: str, 
+    session: Annotated[dict, Depends(auth.get_current_session)]
+):
+    """
+    Endpoint for the frontend to poll the status of a cloning job.
+    """
+    if job_id not in clone_jobs:
+       logging.debug(f"Job {job_id} introuvable dans {clone_jobs.keys()}")
+       raise ProxmoxResourceNotFoundError(resource_type="Job", resource_id=job_id, host="local")
+    
+    return clone_jobs[job_id]

@@ -1,8 +1,10 @@
 .userTable {
   font-family: Arial, sans-serif;
-  background: #f5f5f5;
+  background: var(--bg-app); /* Utilise le fond gris clair ou bleu nuit */
+  color: var(--text-main);  /* Utilise le texte foncé ou blanc */
   padding: 20px;
   min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
 }
 
 .layout {
@@ -11,28 +13,36 @@
   margin-top: 20px;
 }
 
+.aside-div {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  
+
+}
+
 /* === SIDEBAR === */
-.files-sidebar {
+.files-sidebar{
   width: 220px;
   min-width: 220px;
-  background: white;
+  background: var(--bg-surface); /* Blanc ou Gris bleu sombre */
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   height: fit-content;
-}
-
-.files-sidebar h2 {
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0 0 12px 0;
-  color: #1a2744;
+  border: 1px solid var(--border-color);
 }
 
 .files-sidebar ul {
   list-style: none;
   padding: 0;
   margin: 12px 0 0 0;
+}
+.files-sidebar h2{
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: var(--text-main);
 }
 
 .file-item {
@@ -46,25 +56,26 @@
 }
 
 .file-item:hover {
-  background: #f0f4ff;
+  background: var(--bg-app); /* Subtilement différent en mode sombre */
 }
 
 .file-item.active {
-  background: #e8f0ff;
+  background: var(--bg-table-stripe); /* Bleu clair ou surbrillance sombre */
 }
 
 .file-name {
   flex: 1;
   font-size: 13px;
-  color: #333;
+  color: var(--text-main);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+
 .file-item.active .file-name {
-  color: #2d6cdf;
+  color: #2d6cdf; /* On garde le bleu de la marque */
   font-weight: 600;
 }
 
@@ -98,6 +109,8 @@
   text-align: center;
   transition: background 0.2s;
   box-sizing: border-box;
+  border: none; 
+  font-family: inherit;
 }
 
 .upload-btn:hover {
@@ -112,7 +125,7 @@
 .file-content h2 {
   margin: 0 0 4px 0;
   font-size: 20px;
-  color: #1a2744;
+  color: var(--text-main);
 }
 
 .file-content p {
@@ -126,11 +139,11 @@
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: #aaa;
-  font-size: 16px;
-  background: white;
+  color: var(--text-muted);
+  background: var(--bg-surface);
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border: 1px solid var(--border-color);
 }
 
 .loading {
@@ -147,14 +160,15 @@
 .userTable table {
   border-collapse: collapse;
   width: 100%;
-  background: white;
+  background: var(--bg-surface);
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   border-radius: 6px;
   overflow: hidden;
+  border: 1px solid var(--border-color);
 }
 
 .userTable th {
-  background: #2d6cdf;
+  background: var(--table-header); /* Bleu vif ou bleu sombre */
   color: white;
   padding: 12px;
   text-align: left;
@@ -162,20 +176,21 @@
 
 .userTable td {
   padding: 10px 12px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
 }
 
 .userTable tr:nth-child(even) {
-  background: #f0f4ff;
+  background: var(--bg-table-stripe);
 }
 
 .userTable tr:hover {
-  background: #e8f0ff;
+  background: rgba(45, 108, 223, 0.1); /* Légère teinte bleutée */
 }
 
 .userTable .name {
   font-weight: bold;
-  color: #1a3d7c;
+   color: var(--text-main);
 }
 .auth-link-btn {
   display: inline-block;
@@ -205,14 +220,43 @@
 
 /* === TOOLBAR === */
 .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.search-wrapper { display: flex; align-items: center; background: white; border: 1.5px solid #d0d7e3; border-radius: 6px; padding: 0 10px; flex: 1; min-width: 220px; max-width: 420px; transition: border-color 0.2s; }
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0 10px;
+  transition: border-color 0.2s;
+}
 .search-wrapper:focus-within { border-color: #2d6cdf; }
 .search-icon { font-size: 14px; color: #aaa; margin-right: 6px; }
-.search-input { border: none; outline: none; font-size: 14px; padding: 8px 0; width: 100%; background: transparent; color: #333; }
+.search-input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  padding: 8px 0;
+  width: 100%;
+  background: transparent;
+  color: var(--text-main);
+}
 .search-input::placeholder { color: #bbb; }
 .clear-input { background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px; }
 .clear-input:hover { color: #e74c3c; }
-.filter-toggle-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: white; border: 1.5px solid #d0d7e3; border-radius: 6px; font-size: 13px; font-weight: 600; color: #444; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.filter-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s;
+}
 .filter-toggle-btn:hover { border-color: #2d6cdf; color: #2d6cdf; }
 .filter-toggle-btn.active { background: #2d6cdf; border-color: #2d6cdf; color: white; }
 .filter-badge { background: #e74c3c; color: white; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 1px 6px; }
@@ -221,10 +265,22 @@
 .clear-filters-btn:hover { background: #e74c3c; color: white; }
 
 /* === COLUMN FILTERS === */
-.column-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding: 14px; background: white; border: 1.5px solid #e0e7f0; border-radius: 8px; }
+.column-filters {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+}
 .column-filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
 .column-filter-label { font-size: 11px; font-weight: 700; color: #2d6cdf; text-transform: uppercase; letter-spacing: 0.5px; }
-.column-filter-input { padding: 6px 8px; border: 1.5px solid #d0d7e3; border-radius: 5px; font-size: 13px; outline: none; transition: border-color 0.2s; color: #333; }
+.column-filter-input {
+  padding: 6px 8px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-app);
+  border-radius: 5px;
+  font-size: 13px;
+  outline: none;
+  color: var(--text-main);
+}
 .column-filter-input:focus { border-color: #2d6cdf; }
 
 /* === LOGIN HINT === */

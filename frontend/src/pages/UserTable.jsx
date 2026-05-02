@@ -1,18 +1,20 @@
 import { useState, useMemo } from "react";
 import { useCsvData } from "../hooks/useCsvData";
+import {CloneModal} from "./CloneVm";
 import "../styles/userTable.css";
 
 export default function UsersTable({ user }) {
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
-  const { filenames, selectedFile, fileData, headers, loading, loadFile, deleteFile, uploadFile } = useCsvData(API_BASE);
+  const { filenames,VMfilenames, selectedFile, fileData, headers, loading, loadFile, deleteFile, uploadFile, startCloneJob, cloneStatus, setCloneStatus, progress } = useCsvData(API_BASE);
 
   const isAdmin = user?.role === "admin";
 
   const [globalSearch, setGlobalSearch] = useState("");
   const [columnFilters, setColumnFilters] = useState({});
   const [showColumnFilters, setShowColumnFilters] = useState(false);
+  const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
 
   const handleUpload = (e) => {
     const file = e.target.files[0];
@@ -44,23 +46,21 @@ export default function UsersTable({ user }) {
     <div className="userTable">
       <div className="layout">
 
+        <div className="aside-div">
         {/* Sidebar */}
         <aside className="files-sidebar">
           <h2>CSV Files</h2>
 
-          {!user && (
-            <div className="login-hint">
-              <span>🔒</span>
-              <p>Connectez-vous pour importer ou supprimer des fichiers</p>
-            </div>
+         
+          {isAdmin && (
+            
+            <label className="upload-btn">+ Import CSV <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleUpload}/>
+            </label>
+    
+         
           )}
 
-          {isAdmin && (
-            <label className="upload-btn">
-              + Import CSV
-              <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleUpload} />
-            </label>
-          )}
+         
 
           {filenames.length === 0 ? (
             <p>No files available</p>
@@ -77,6 +77,42 @@ export default function UsersTable({ user }) {
             </ul>
           )}
         </aside>
+        
+       {isAdmin && (
+        <aside className="files-sidebar">
+        <h2>VMs Files</h2>
+
+        {/* Le bouton pour ouvrir la modale */}
+        <button className="upload-btn" onClick={() => setIsCloneModalOpen(true)}>
+        Cloner VMs
+        </button>
+
+        {/* La liste des fichiers VMs */}
+        {VMfilenames.length === 0 ? (
+        <p>No files available</p>
+        ) : (
+          <ul>
+          {VMfilenames.map((filename, i) => (
+            <li key={i} className={`file-item ${selectedFile === filename ? "active" : ""}`}>
+              <span className="file-name" onClick={() => loadFile(filename)}>
+                {filename}
+              </span>
+            
+              
+              <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      </aside>
+    )}
+
+    </div>
+
+        
+          
 
         {/* Main content */}
         <main className="file-content">
@@ -160,8 +196,19 @@ export default function UsersTable({ user }) {
               </div>
             </>
           )}
+          <CloneModal 
+            isOpen={isCloneModalOpen}
+            onClose={() => { 
+              setIsCloneModalOpen(false); 
+              setTimeout(() => setCloneStatus("idle"), 300); // Reset après la fermeture
+            }}
+            onStartClone={startCloneJob}
+            status={cloneStatus}
+            progress={progress}
+          />
         </main>
       </div>
     </div>
+    
   );
 }
