@@ -8,8 +8,8 @@ const API_BASE = `${BASE}api`;
 export default function ListVM({ server, vms, allServersData, isMulti, onRefresh, addLog }) {
   const header = useMemo(() => {
     return isMulti
-      ? ["server", "vmid", "name", "status", "actions"]
-      : ["vmid", "name", "status", "actions"];
+      ? ["server", "vmid", "name", "ip","status", "actions"]
+      : ["vmid", "name", "ip","status", "actions"];
   }, [isMulti]);
 
   const [filters, setFilters] = useState({});
@@ -190,6 +190,45 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
 
   const allSelected = filtered.length > 0 && selectedVMs.size === filtered.length;
 
+  const exportToCSV = () => {
+    if (selectedList.length === 0) return;
+  
+    // 1. Définir les colonnes (les headers que tu as déjà)
+    // On retire "actions" car ça n'a pas de sens dans un CSV
+    const csvHeaders = header.filter(h => h !== "actions");
+  
+    // 2. Créer la ligne d'en-tête
+    const headerRow = csvHeaders.join(",");
+  
+    // 3. Créer les lignes de données
+    const dataRows = selectedList.map(vm => {
+      return csvHeaders.map(h => {
+        // On remplace les virgules par des espaces pour ne pas casser le format CSV
+        const value = String(vm[h] ?? "Non disponible").replace(/,/g, " ");
+        return `"${value}"`; // On entoure de guillemets pour la sécurité
+      }).join(",");
+    });
+  
+    // 4. Assembler le contenu complet
+    const csvContent = [headerRow, ...dataRows].join("\n");
+  
+    // 5. Créer le lien de téléchargement "invisible"
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `export_vms_${new Date().toLocaleDateString()}.csv`);
+    
+    // 6. Déclencher le téléchargement
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    addLog(`[Export] ${selectedList.length} VMs exportées en CSV`, "success");
+  };
+
+
+
   return (
     <>
       <div className="vm-header breadcrumb-header">
@@ -245,6 +284,12 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
               {bulkLoading ? <ClipLoader color="#ffffff" size={13} /> : action.charAt(0).toUpperCase() + action.slice(1)}
             </button>
           ))}
+          {/* Nouveau bouton Export CSV */}
+          <button 
+            className="create-btn" 
+            onClick={exportToCSV}
+            style={{ backgroundColor: "#27ae60"}}>
+            📥 Exporter CSV</button>
           <button className="create-btn" onClick={() => setSelectedVMs(new Set())}>✕ Désélectionner</button>
         </div>
       )}
@@ -263,8 +308,9 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
                 />
               </th>
               {header.map(h => (
-                <th key={h} onClick={() => handleHeaderClick(h)} style={{ cursor: "pointer" }}>
-                  {h.charAt(0).toUpperCase() + h.slice(1)}
+                <th key={h} onClick={() => handleHeaderClick(h)} style={{ cursor: "pointer",textAlign: h === "actions" ? "center" : "left" }}>
+                  {/* Condition pour IP en majuscules, sinon formatage classique */}
+                  {h === "ip" ? "IP" : h.charAt(0).toUpperCase() + h.slice(1)}
                   <Arrow col={h} />
                 </th>
               ))}
@@ -319,6 +365,15 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
                 {isMulti && <td>{vm.server}</td>}
                 <td>{vm.vmid}</td>
                 <td>{vm.name}</td>
+                <td>
+                {vm.ip && vm.ip !== "null" ? (
+                  <span style={{ fontWeight: '500', fontFamily: 'monospace' }}>{vm.ip}</span>
+                ) : (
+                  <span style={{ color: '#95a5a6', fontSize: '0.9em', fontStyle: 'italic' }}>
+                    Non disponible
+                  </span>
+                )}
+                </td>
                 <td>{vm.status}</td>
                 <td className="vm-actions">
                   {["start", "stop", "shutdown", "delete"].map((action) => {
