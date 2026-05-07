@@ -59,7 +59,9 @@ class ProxmoxManager:
         # 2. Retrieve the IDs of the VMs that the user actually has rights to (via the pool)
         owned_vmids = set()
         try:
-            pool_data = self.proxmox.pools(self.user).get()
+            user = self.user.split("@",1)
+            pool_data = self.proxmox.pools(user[0]).get()
+            
             owned_vmids = {
                 member["vmid"] for member in pool_data.get("members", []) 
                 if member.get("type") == "qemu"

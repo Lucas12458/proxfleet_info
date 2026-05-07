@@ -1,6 +1,7 @@
 from proxfleet.proxmox_csv import ProxmoxCSV
 from typing import Annotated
 from fastapi import Depends, APIRouter, HTTPException, UploadFile, File, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from api.routers import auth
 import os
@@ -166,17 +167,49 @@ async def create_upload_vms(
         file_path = EXPORT_DIR / safe_filename
 
         if file_path.exists():
-             raise HTTPException(status_code=409, detail="Le fichier existe déjà")
+             raise HTTPException(status_code=409, detail="CSV file already exists")
 
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(csv.file, buffer)
 
-        # MODIFICATION ICI : On renvoie 'filename' pour correspondre au frontend
+        
         return {"filename": safe_filename}
         
     except Exception as e:
-        logging.error(f"Erreur upload : {str(e)}")
-        raise HTTPException(status_code=500, detail="Impossible d'uploader le CSV")
+        logging.error(f"Error while uploading CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unable to upload CSV")
+    
+@router.get("/csv/download/{filename}")
+async def download_csv(filename: str):
+    safe_filename = os.path.basename(filename)
+    file_path = UPLOAD_DIR / safe_filename
+    
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="CSV file doesn't exists")
+
+   
+    return FileResponse(
+        path=file_path, 
+        media_type="text/csv", 
+        filename=safe_filename
+    )
+
+@router.get("/csv/download-export/{filename}")
+async def download_export_csv(filename: str):
+    safe_filename = os.path.basename(filename)
+    file_path = EXPORT_DIR / safe_filename
+
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="CSV file doesn't exists")
+
+   
+    return FileResponse(
+        path=file_path, 
+        media_type="text/csv", 
+        filename=safe_filename
+    )
+
+
 
 @router.get("/csv/read")
 async def read_csv(proxmox_csv: Annotated[ProxmoxCSV, Depends(get_proxmox_csv)]):

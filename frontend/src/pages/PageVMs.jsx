@@ -51,6 +51,17 @@ const loadAllVMs = useCallback(async () => {
     const fetchPromises = targetServers.map(async (srv) => {
       try {
         const res = await fetch(`${API_BASE}/server/${srv}/vm`, { credentials: "include" });
+        if (res.status === 401) {
+          console.warn("Session expired or unauthorized. Redirecting to login.");
+      
+          // 1. Clear the frontend state
+          sessionStorage.removeItem("user_session");
+      
+          // 2. Force a full page redirect to the auth page
+          // Using window.location guarantees the React state is wiped clean
+          window.location.href = "/auth"; 
+          return; 
+        }
         if (res.ok) {
           const data = await res.json();
           return { server: srv, vms: data };

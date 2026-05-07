@@ -22,6 +22,87 @@ export default function UsersTable({ user }) {
     e.target.value = "";
   };
 
+  const handleDownload = async (filename) => {
+    try {
+      const response = await fetch(`${API_BASE}/csv/download/${filename}`, {
+        method: "GET",
+        credentials: "include" // Required to pass the authentication middleware
+      });
+
+      // Handle session expiration
+      if (response.status === 401) {
+        sessionStorage.removeItem("user_session");
+        window.location.href = "/auth";
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Download failed due to a server error.");
+     }
+
+      // Convert the response to a Blob
+      const blob = await response.blob();
+    
+      // Generate a temporary URL for the Blob
+      const downloadUrl = window.URL.createObjectURL(blob);
+    
+      // Create a hidden anchor element to trigger the download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename; 
+    
+      document.body.appendChild(link);
+      link.click();
+    
+      // Clean up the DOM and release memory
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error("Error while downloading the CSV file:", error);
+    }
+  };
+
+ const handleVMDownload = async (filename) => {
+    try {
+      const response = await fetch(`${API_BASE}/csv/download-export/${filename}`, {
+        method: "GET",
+        credentials: "include" // Required to pass the authentication middleware
+      });
+
+      // Handle session expiration
+      if (response.status === 401) {
+        sessionStorage.removeItem("user_session");
+        window.location.href = "/auth";
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Download failed due to a server error.");
+     }
+
+      // Convert the response to a Blob
+      const blob = await response.blob();
+    
+      // Generate a temporary URL for the Blob
+      const downloadUrl = window.URL.createObjectURL(blob);
+    
+      // Create a hidden anchor element to trigger the download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename; 
+    
+      document.body.appendChild(link);
+      link.click();
+    
+      // Clean up the DOM and release memory
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error("Error while downloading the CSV file:", error);
+    }
+  };
   const activeFilterCount = useMemo(() =>
     (globalSearch ? 1 : 0) + Object.values(columnFilters).filter(v => v?.trim()).length,
     [globalSearch, columnFilters]
@@ -70,7 +151,17 @@ export default function UsersTable({ user }) {
                 <li key={i} className={`file-item ${selectedFile === filename ? "active" : ""}`}>
                   <span className="file-name" onClick={() => loadFile(filename)}>{filename}</span>
                   {isAdmin && (
+                    <>
                     <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>✕</button>
+                    <button className="action-btn download-btn" onClick={() => handleDownload(filename)} title="Download">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                    </button>
+                    </>
+                    
                   )}
                 </li>
               ))}
@@ -102,6 +193,13 @@ export default function UsersTable({ user }) {
               <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>
                 ✕
               </button>
+              <button className="action-btn download-btn" onClick={() => handleVMDownload(filename)} title="Download">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+              </button>
             </li>
           ))}
         </ul>
@@ -110,9 +208,6 @@ export default function UsersTable({ user }) {
     )}
 
     </div>
-
-        
-          
 
         {/* Main content */}
         <main className="file-content">

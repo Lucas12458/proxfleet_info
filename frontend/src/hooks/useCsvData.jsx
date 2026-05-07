@@ -182,7 +182,7 @@ useEffect(() => {
 
   return { 
     filenames,VMfilenames, selectedFile, fileData, headers, loading, 
-    loadFile, deleteFile, uploadFile, fetchFilenames,fetchVMFilenames,
+    loadFile, deleteFile, uploadFile,fetchFilenames,fetchVMFilenames,
     startCloneJob, cloneStatus, setCloneStatus, progress // On exporte tout
   };
 }

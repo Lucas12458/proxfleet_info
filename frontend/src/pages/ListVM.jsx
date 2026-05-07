@@ -191,41 +191,74 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
   const allSelected = filtered.length > 0 && selectedVMs.size === filtered.length;
 
   const exportToCSV = () => {
-    if (selectedList.length === 0) return;
-  
-    // 1. Définir les colonnes (les headers que tu as déjà)
-    // On retire "actions" car ça n'a pas de sens dans un CSV
-    const csvHeaders = header.filter(h => h !== "actions");
-  
-    // 2. Créer la ligne d'en-tête
-    const headerRow = csvHeaders.join(",");
-  
-    // 3. Créer les lignes de données
-    const dataRows = selectedList.map(vm => {
-      return csvHeaders.map(h => {
-        // On remplace les virgules par des espaces pour ne pas casser le format CSV
-        const value = String(vm[h] ?? "Non disponible").replace(/,/g, " ");
-        return `"${value}"`; // On entoure de guillemets pour la sécurité
-      }).join(",");
-    });
-  
-    // 4. Assembler le contenu complet
-    const csvContent = [headerRow, ...dataRows].join("\n");
-  
-    // 5. Créer le lien de téléchargement "invisible"
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `export_vms_${new Date().toLocaleDateString()}.csv`);
+  if (selectedList.length === 0) return;
+
+  // 1. Define the exact headers expected by the provisioning system
+  const expectedHeaders = [
+    "student_name", "student_firstname", "student_login", "target_host", 
+    "vm_name", "template_name", "pool", "storage", "newid", 
+    "net0", "net1", "ipv4", "status"
+  ];
+
+  const delimiter = ";"; 
+
+  // 2. Create the header row
+  const headerRow = expectedHeaders.join(delimiter);
+
+  // 3. Map frontend data to the expected backend format
+  const dataRows = selectedList.map(vm => {
     
-    // 6. Déclencher le téléchargement
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    addLog(`[Export] ${selectedList.length} VMs exportées en CSV`, "success");
-  };
+    // Create a mapped object translating frontend keys to backend columns
+    const mappedRow = {
+      student_name: "", // Not available in frontend
+      student_firstname: "", // Not available in frontend
+      student_login: "", // Not available in frontend
+      target_host: vm.server || "",
+      vm_name: vm.name || "",
+      template_name: "", // Not available in frontend
+      pool: "", // Not available in frontend
+      storage: "", // Not available in frontend
+      newid: vm.vmid || "",
+      net0: "", // Not available in frontend
+      net1: "", // Not available in frontend
+      ipv4: vm.ip || "",
+      status: vm.status || ""
+    };
+
+    // Iterate over the expected headers and extract from the mapped object
+    return expectedHeaders.map(headerKey => {
+      const rawValue = String(mappedRow[headerKey] || "");
+      const cleanValue = rawValue.replace(/"/g, '""');
+      return `"${cleanValue}"`; 
+    }).join(delimiter);
+  });
+
+  // 4. Assemble the final CSV content
+  const csvContent = [headerRow, ...dataRows].join("\n");
+
+  // 5. Add UTF-8 BOM to ensure Excel reads special characters properly
+  const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+  
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  const dateString = new Date().toISOString().split("T")[0];
+  link.setAttribute("href", url);
+  link.setAttribute("download", `export_vms_${dateString}.csv`);
+  
+  // 6. Trigger the download silently
+  document.body.appendChild(link);
+  link.click();
+  
+  // Clean up the DOM
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  
+  // Assuming addLog is defined in your component
+  if (typeof addLog === "function") {
+    addLog(`[Export] ${selectedList.length} VMs exportées en CSV.`, "success");
+  }
+};
 
 
 
