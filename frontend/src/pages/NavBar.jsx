@@ -65,7 +65,16 @@ export default function Navbar({ user, onLogout }) {
       </div>
 
       <div className="navbar-links">
-        {(isAdmin || 
+       {user && (
+          <Link 
+            to="/vms" 
+            className={`nav-item ${location.pathname === '/vms' ? 'active' : ''}`}
+          >
+            Machines Virtuelles
+          </Link>
+        )}
+
+         {(isAdmin || 
           user?.permissions?.can_modify_csv || 
           user?.permissions?.can_bulk_clone || 
           user?.permissions?.can_export_vms) && (
@@ -73,16 +82,7 @@ export default function Navbar({ user, onLogout }) {
             to="/" 
             className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
           >
-            Gérer les CSV
-          </Link>
-        )}
-
-        {user && (
-          <Link 
-            to="/vms" 
-            className={`nav-item ${location.pathname === '/vms' ? 'active' : ''}`}
-          >
-            Machines Virtuelles
+            Outils Avancés
           </Link>
         )}
       </div>

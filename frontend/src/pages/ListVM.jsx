@@ -366,7 +366,7 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
   }
 };
 
-  const usernamePrefix = user?.username ? `${user?.username}-` : "";
+  const usernamePrefix = user?.username.split('@')[0] ? `${user?.username.split('@')[0]}-` : "";
 
 
 
@@ -408,7 +408,7 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
           availableServers={availableServers}
           defaultServer={server || createServer}
           defaultTemplate={selectedTemplateId}
-          defaultPool={user?.username}
+          defaultPool={user?.username.split('@')[0]}
           defaultName={usernamePrefix}
         />
       </div>
