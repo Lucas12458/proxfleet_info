@@ -251,13 +251,29 @@ class ProxmoxVM:
 
         if not self.is_running():
             logging.debug(f"VM {self.vmid} is not running. Skipping IPv4 retrieval.")
-            return ""
+            raise RuntimeError("VM is not running")
+        
+
+        try:
+            node = self.manager.proxmox.nodes.get()[0]["node"]
+            config = self.manager.proxmox.nodes(node).qemu(self.vmid).config.get()
+            agent_config = str(config.get("agent", ""))
+            
+            if "1" not in agent_config:
+                logging.warning(f"No QEMU guest agent configured for VM {self.vmid}.")
+                # Déclenche l'état "not_configured" dans ton routeur FastAPI
+                raise RuntimeError("not configured")
+                
+        except Exception as e:
+            if "not configured" in str(e):
+                raise
+            logging.warning(f"Could not check agent config for VM {self.vmid}: {e}")
 
        
         if not self.ping_agent():
             logging.warning(f"QEMU Agent not responding on VM {self.vmid}. Cannot get IP.")
-            return ""
-        
+            raise RuntimeError("not running")
+         
 
         subnets = [
             ipaddress.ip_network("192.168.140.0/23"),
@@ -281,7 +297,7 @@ class ProxmoxVM:
                     except ValueError:
                         continue
         logging.error(f"No management IPv4 found for VM {self.vmid}.")
-        return ""
+        raise RuntimeError("No management IP found in expected subnets")
 
     def get_network_interfaces(self):
         """

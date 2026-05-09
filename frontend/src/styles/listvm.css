@@ -105,7 +105,9 @@
 .btn-start,
 .btn-stop,
 .btn-shutdown,
-.btn-delete {
+.btn-delete,
+.btn-clone 
+{
   width: 80px;
   padding: 8px 1px;
   border: none;
@@ -128,6 +130,9 @@
 
 .btn-delete { background: #e74c3c; }
 .btn-delete:hover { background: #c0392b; transform: scale(1.05); }
+
+.btn-clone{background: #3498db;}
+.btn-clone:hover { background: #236794; transform: scale(1.05); }
 
 .vm-table td:last-child { padding-right: 25px; }
 

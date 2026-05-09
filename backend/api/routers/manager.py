@@ -187,7 +187,7 @@ async def check_pool_exists(proxmox_manager:Annotated[ProxmoxManager,Depends(get
     return proxmox_manager.check_pool_exists(pool_name=pool_name)
 
 
-@router.get("/server/{host}/storage")
+@router.get("/server/{host}/storage/check")
 async def check_storage_exists(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)],storage_name:str):
     return proxmox_manager.check_storage_exists(storage_name=storage_name)
 
@@ -195,3 +195,6 @@ async def check_storage_exists(proxmox_manager:Annotated[ProxmoxManager,Depends(
 async def get_next_vmid(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     return proxmox_manager.get_next_vmid()
 
+@router.get("/server/{host}/storage")
+async def get_storage(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
+    return proxmox_manager.get_storage()

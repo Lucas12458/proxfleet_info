@@ -2,9 +2,10 @@ from proxfleet.proxmox_manager import ProxmoxManager
 from proxfleet.proxmox_etu import ProxmoxEtu
 from typing import Annotated
 from api.routers import auth
-from api.utils.roles import add_admin_user
+from api.utils.roles import get_user_permissions,update_user_permissions,remove_admin_user,add_admin_user,UserPermissions,UserPermissionsUpdate
 from fastapi import Depends,APIRouter,HTTPException
-from api.exceptions.exceptions import AdminConfigurationError
+from api.exceptions.exceptions import AdminConfigurationError,PermissionsError
+
 from pydantic import BaseModel
 import os
 import dotenv
@@ -88,15 +89,53 @@ async def add_user_to_group(group:str,userid:str,proxmox_manager:Annotated[Proxm
 async def delete_usmb_users(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     return proxmox_manager.delete_usmb_users()
 
-@router.post("/server/{host}/user/{userid}/role")
-async def set_effective_role(host: str, userid: str):
+@router.get("/user/{userid}/permissions")
+async def api_get_permissions(userid: str,session=Depends(auth.get_current_session)):
     """
-    Endpoint to grant admin rights to a user by adding them to the admins.json file.
-    Catches standard Python errors and raises the specific AdminConfigurationError.
+    Retrieves the application-level permissions for a specific user.
+
+    Args:
+        userid (str): The unique identifier of the user.
+
+    Returns:
+        dict: A dictionary containing the user's permissions (e.g., can_modify_csv).
+
+    Raises:
+        HTTPException: If there is an underlying business logic error reading the permissions.
     """
     try:
-        await add_admin_user(userid=userid)
-        return {"message": f"User {userid} successfully added to admins."}
-    except (ValueError, RuntimeError) as e:
-        logging.error(f"Role update failed for {userid}: {str(e)}")
-        raise AdminConfigurationError(userid=userid, details=str(e))
+        return await get_user_permissions(userid)
+    except PermissionsError as e:
+        # Translate the business logic error into an HTTP error
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/user/{userid}/permissions")
+async def api_update_permissions(
+    userid: str, 
+    data: UserPermissionsUpdate,
+    session: dict = Depends(auth.verify_admin_rights) # Only an admin can change permissions
+):
+    """
+    Main entry point to update user rights. 
+    Routes admin status to admins.json and functional rights to users_config.json.
+    """
+    try:
+        # 1. Handle Global Admin Status (admins.json)
+        if data.is_admin:
+            await add_admin_user(userid)
+        else:
+            await remove_admin_user(userid)
+
+        # 2. Handle Functional Permissions (users_config.json)
+        # We extract only the functional fields for the config file
+        functional_perms = UserPermissions(
+            can_modify_csv=data.can_modify_csv,
+            can_bulk_clone=data.can_bulk_clone,
+            can_export_vms=data.can_export_vms
+        )
+        await update_user_permissions(userid, functional_perms)
+
+        return {"message": f"All privileges updated successfully for {userid}"}
+
+    except PermissionsError as e:
+        raise HTTPException(status_code=500, detail=str(e))

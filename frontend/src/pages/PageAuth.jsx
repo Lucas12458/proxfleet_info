@@ -116,6 +116,7 @@ export default function PageAuth({ onLogin }) {
           type="text"
           autoComplete="username" 
           placeholder="Username"
+          required
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
@@ -126,6 +127,7 @@ export default function PageAuth({ onLogin }) {
           type="password"
           autoComplete="current-password" 
           placeholder="Password"
+          required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

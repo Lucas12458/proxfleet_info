@@ -159,7 +159,6 @@ def get_proxmox_vm_for_clone(host: str, vm_data: CloneVMRequest, session=Depends
         raise ProxmoxAPIError(f"Failed to initialize clone request for host {host}: {str(e)}")
 
 
-# Dans ton fichier de routes FastAPI
 def background_clone_task(job_id, file_path, config_path, user, all_tokens):
     with open(file_path, 'r') as f:
         total_vms = sum(1 for _ in f) - 1
@@ -241,28 +240,64 @@ async def vm_action(vmid: int, action_data: VMAction, proxmox_vm: Annotated[Prox
 async def get_vm_network(host: str, vmid: int, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)]):
     """
     Fetch network interface configurations and the primary management IP address of the VM.
+    Gracefully handles QEMU agent states for frontend polling.
     """
     try:
-        return {"interfaces": proxmox_vm.get_network_interfaces(), "management_ip": proxmox_vm.management_ip()}
-    except Exception as e:
-        error_msg = str(e)
+        # Si l'agent répond parfaitement
+        return {
+            "interfaces": proxmox_vm.get_network_interfaces(), 
+            "management_ip": proxmox_vm.management_ip(),
+            "agent_status": "ok"
+        }
         
-        if "403" in error_msg or "Permission check failed" in error_msg:
-            raise ProxmoxUnauthorizedError(host=host, user="current_user", reason=f"Insufficient permissions (VM.Monitor) for VM {vmid}")
+    except Exception as e:
+        error_msg = str(e).lower()
+        logging.error(f"{error_msg}")
+        
+        # 1. Erreurs d'autorisation (On garde la levée d'erreur stricte)
+        if "403" in error_msg or "permission check failed" in error_msg:
+            raise ProxmoxUnauthorizedError(
+                host=host, 
+                user="current_user", 
+                reason=f"Insufficient permissions (VM.Monitor) for VM {vmid}"
+            )
             
-        elif "agent" in error_msg.lower() or "500" in error_msg:
-            raise ProxmoxConnectionError(host=f"{host} (QEMU Agent on VM {vmid} not responding)")
+        # 2. Cas spécifique : L'agent QEMU n'est pas coché dans le hardware (ex: Routeurs)
+        # On ne lève PAS d'erreur, on renvoie une réponse JSON standard
+        elif "not configured" in error_msg:
+            return {
+                "management_ip": None, 
+                "agent_status": "not_configured"
+            }
             
+        # 3. Cas spécifique : L'agent est activé mais le service n'a pas encore démarré
+        elif "not running" in error_msg or "agent" in error_msg or "500" in error_msg:
+            return {
+                "management_ip": None, 
+                "agent_status": "booting"
+            }
+            
+        # 4. Erreurs inconnues
         else:
             raise ProxmoxAPIError(f"Internal error while reading network data: {error_msg}")
-
-
+        
 @router.post("/server/{host}/vm/clone")
-async def clone_vm(host: str, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)], proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
+async def clone_vm(host: str, request_data: CloneVMRequest,proxmox_manager: Annotated[ProxmoxManager, Depends(get_proxmox_manager)]):
     """
-    Create a clone of an existing VM.
+    Create a clone of an existing VM using parameters from the request body.
     Automatically assigns the next available ID if none is provided.
     """
+    
+    
+    proxmox_vm = ProxmoxVM(manager=proxmox_manager, vmid=request_data.template)
+    
+    # Assign the new parameters requested by the user
+    proxmox_vm.newid = request_data.newid
+    proxmox_vm.name_vm = request_data.name
+    proxmox_vm.pool_vm = request_data.pool
+    proxmox_vm.storage_vm = request_data.storage
+    proxmox_vm.template_vm = request_data.template
+
     if proxmox_vm.newid is None:
         try:
             proxmox_vm.newid = proxmox_manager.get_next_vmid()
@@ -275,9 +310,10 @@ async def clone_vm(host: str, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmo
             )
 
     try:
-        logging.info(f"Cloning VM {proxmox_vm.template_vm} to new ID {proxmox_vm.newid} on {host}...")
+        logging.info(f"Cloning template {request_data.template} to new ID {proxmox_vm.newid} on {host}...")
         
-        result = proxmox_vm.clone_vm()
+        
+        result = proxmox_vm.clone_vm() 
         
         return {
             "message": "Cloning process started successfully",
@@ -290,7 +326,7 @@ async def clone_vm(host: str, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmo
         if "not exist" in error_msg.lower():
              raise ProxmoxResourceNotFoundError(
                  resource_type="Template", 
-                 resource_id=str(proxmox_vm.template_vm), 
+                 resource_id=str(request_data.template), 
                  host=host
              )
         

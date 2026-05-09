@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { useCsvData } from "../hooks/useCsvData";
-import {CloneModal} from "./CloneVm";
+import {CloneModal} from "./BulkCloneVm";
+import { PermissionsModal } from "./PermissionsModal";
 import "../styles/userTable.css";
 
 export default function UsersTable({ user }) {
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
+  
 
   const { filenames,VMfilenames, selectedFile, fileData, headers, loading, loadFile, deleteFile, uploadFile, startCloneJob, cloneStatus, setCloneStatus, progress } = useCsvData(API_BASE);
 
@@ -15,6 +17,8 @@ export default function UsersTable({ user }) {
   const [columnFilters, setColumnFilters] = useState({});
   const [showColumnFilters, setShowColumnFilters] = useState(false);
   const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+
 
   const handleUpload = (e) => {
     const file = e.target.files[0];
@@ -133,17 +137,13 @@ export default function UsersTable({ user }) {
           <h2>CSV Files</h2>
 
          
-          {isAdmin && (
+          {(isAdmin || user?.permissions?.can_modify_csv) && (
             
             <label className="upload-btn">+ Import CSV <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleUpload}/>
             </label>
-    
-         
           )}
 
-         
-
-          {filenames.length === 0 ? (
+         {filenames.length === 0 ? (
             <p>No files available</p>
           ) : (
             <ul>
@@ -169,43 +169,56 @@ export default function UsersTable({ user }) {
           )}
         </aside>
         
-       {isAdmin && (
+       {(isAdmin || user?.permissions?.can_bulk_clone)&& (
         <aside className="files-sidebar">
-        <h2>VMs Files</h2>
+          <h2>VMs Files</h2>
 
-        {/* Le bouton pour ouvrir la modale */}
-        <button className="upload-btn" onClick={() => setIsCloneModalOpen(true)}>
-        Cloner VMs
-        </button>
+          {/* Le bouton pour ouvrir la modale */}
+          <button className="upload-btn" onClick={() => setIsCloneModalOpen(true)}>
+          Cloner VMs
+          </button>
 
-        {/* La liste des fichiers VMs */}
-        {VMfilenames.length === 0 ? (
-        <p>No files available</p>
-        ) : (
-          <ul>
-          {VMfilenames.map((filename, i) => (
-            <li key={i} className={`file-item ${selectedFile === filename ? "active" : ""}`}>
-              <span className="file-name" onClick={() => loadFile(filename)}>
-                {filename}
-              </span>
+          {/* La liste des fichiers VMs */}
+          {VMfilenames.length === 0 ? (
+          <p>No files available</p>
+          ) : (
+            <ul>
+            {VMfilenames.map((filename, i) => (
+              <li key={i} className={`file-item ${selectedFile === filename ? "active" : ""}`}>
+                <span className="file-name" onClick={() => loadFile(filename)}>
+                  {filename}
+                </span>
             
               
-              <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>
-                ✕
-              </button>
-              <button className="action-btn download-btn" onClick={() => handleVMDownload(filename)} title="Download">
+                <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>
+                  ✕
+                </button>
+                <button className="action-btn download-btn" onClick={() => handleVMDownload(filename)} title="Download">
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                       <polyline points="7 10 12 15 17 10"></polyline>
                       <line x1="12" y1="15" x2="12" y2="3"></line>
                       </svg>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      </aside>
-    )}
+                </button>
+              </li>
+            ))}
+            </ul>
+          )}
+        </aside>
+        )}
+
+        {isAdmin && (
+        <aside className="files-sidebar">
+          <h2>Privilèges</h2>
+
+          {/* Le bouton pour ouvrir la modale */}
+          <button className="upload-btn" onClick={() => setIsPermissionsModalOpen(true)}>
+          Gérer les privilèges
+          </button>
+        </aside>
+        )}
+
+
 
     </div>
 
@@ -300,6 +313,16 @@ export default function UsersTable({ user }) {
             onStartClone={startCloneJob}
             status={cloneStatus}
             progress={progress}
+          />
+          <PermissionsModal 
+            isOpen={isPermissionsModalOpen}
+            onClose={() => { 
+              setIsPermissionsModalOpen(false); 
+              
+            }}
+            server={localStorage.getItem("server") || "all"}
+            currentUser={user}
+           
           />
         </main>
       </div>

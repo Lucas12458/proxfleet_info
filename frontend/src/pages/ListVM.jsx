@@ -1,26 +1,34 @@
 import "../styles/listvm.css";
 import { useState, useMemo, useEffect } from 'react';
 import { ClipLoader } from "react-spinners";
+import {CreateVmModal} from "./CloneVm";
 
 const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
 const API_BASE = `${BASE}api`;
 
-export default function ListVM({ server, vms, allServersData, isMulti, onRefresh, addLog }) {
+export default function ListVM({ server, vms, allServersData, isMulti, onRefresh, addLog, user }) {
   const header = useMemo(() => {
     return isMulti
       ? ["server", "vmid", "name", "ip","status", "actions"]
       : ["vmid", "name", "ip","status", "actions"];
   }, [isMulti]);
 
+  const isAdmin = user?.role === "admin" || user?.permissions?.is_admin;
+
   const [filters, setFilters] = useState({});
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState({ keyToSort: "vmid", direction: "asc" });
-  const [vmName, setVmName] = useState("");
-  const [showInput, setShowInput] = useState(false);
+
   const [availableServers, setAvailableServers] = useState([]);
   const [createServer, setCreateServer] = useState(server || "");
   const [actionLoading, setActionLoading] = useState({});
+  const [loadingIPs, setLoadingIPs] = useState({});
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  
+  const [selectedTemplateId, setSelectedTemplateId] = useState(500);
+
 
   // ─── Sélection multiple ────────────────────────────────────────────────────
   const [selectedVMs, setSelectedVMs] = useState(new Set());
@@ -112,29 +120,53 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
     setBulkLoading(false);
     setSelectedVMs(new Set());
   }
+
+  const handleCloneTemplateClick = (templateId, templateServer) => {
+    // Pre-fill the template ID
+    setSelectedTemplateId(templateId);
+  
+    // Pre-select the server where the template is located (crucial for multi-node setups)
+    if (templateServer) {
+      setCreateServer(templateServer);
+    }
+  
+    // Open the modal
+    setIsCreateModalOpen(true);
+    };
+
   // ──────────────────────────────────────────────────────────────────────────
 
-  async function createVMConfirm() {
-    if (!vmName.trim()) return alert("Entre un nom de VM");
-    const targetServer = isMulti ? createServer : server;
-    if (!targetServer) return alert("Aucun serveur disponible");
-    const storageName = (targetServer === "pm-serv18" || targetServer === "pm-serv19") ? "data2" : "data";
-    try {
-      const response = await fetch(`${API_BASE}/server/${targetServer}/vm/clone`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ newid: null, name: vmName, template: 500, pool: "projetinfo", storage: storageName })
-      });
-      if (!response.ok) { alert(`Erreur lors de la création : serveur ${targetServer} indisponible`); return; }
-      await response.json();
-      setTimeout(() => onRefresh(), 4000);
-    } catch { 
-      alert("Erreur réseau lors de la création de la VM"); 
+  async function createVMConfirm(payload, targetServer) {
+  try {
+    const response = await fetch(`${API_BASE}/server/${targetServer}/vm/clone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+  
+    if (!response.ok) { 
+      alert(`Creation error: server ${targetServer} unavailable or ID conflict.`); 
+      return; 
     }
-    setVmName("");
-    setShowInput(false);
+  
+    const data = await response.json();
+    addLog(`[Creation] VM ${payload.name} creation started on ${targetServer}`, "info");
+    
+    setIsCreateModalOpen(false); // Close modal on success
+    if (data.task_id) {
+      // Create a specific action name like "clone" so your UI doesn't block the standard start/stop buttons
+      checkTaskStatus(targetServer, data.task_id, "clone", data.vmid,0);
+    } else {
+      // Fallback if your API doesn't return the task_id
+      setTimeout(() => onRefresh(), 5000);
+    }
+  
+  } catch (error) { 
+    console.error(error);
+    alert("Network error while creating the VM."); 
   }
+}
 
   async function vmAction(vmid, action, targetServer) {
     const srv = targetServer || server;
@@ -150,7 +182,7 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
       const data = await res.json();
       if (res.ok && data[0] === true) {
         addLog(`[Action] ${action} lancée sur VM ${vmid}`, "info");
-        checkTaskStatus(srv, data[1], action, vmid);
+        checkTaskStatus(srv, data[1], action, vmid,1);
       } else {
         addLog(`Erreur : ${data[1] || "Action refusée"}`, "error");
         setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
@@ -161,18 +193,92 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
     }
   }
 
-  async function checkTaskStatus(srv, upid, action, vmid) {
+  async function waitForIP(srv, vmid, attempts = 0) {
+    const currentVmKey = `${srv}-${vmid}`;
+    // Timeout de sécurité maintenu (environ 40 secondes)
+    if (attempts > 10) {
+      addLog(`[Network] Delai d'attente depasse pour l'IP de la VM ${vmid}`, "error");
+      setLoadingIPs(prev => { const n = { ...prev }; delete n[currentVmKey]; return n; });
+      onRefresh(); 
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/server/${srv}/vm/${vmid}/network`, { credentials: "include" });
+    
+      if (res.ok) {
+        const status = await res.json();
+
+        // NOUVEAU : On gère l'absence totale d'agent QEMU
+        if (status.agent_status === "not_configured") {
+          addLog(`[Network] Pas d'agent QEMU configuré sur la VM ${vmid}. Impossible d'afficher l'IP.`, "warning");
+          setLoadingIPs(prev => { const n = { ...prev }; delete n[currentVmKey]; return n; });
+          onRefresh(); // On rafraîchit le tableau et on arrête de chercher
+          return; 
+        }
+      
+        // Si une IP est disponible
+        if (status.management_ip && status.management_ip !== "null" && status.management_ip !== "") {
+          setLoadingIPs(prev => { const n = { ...prev }; delete n[currentVmKey]; return n; });
+          onRefresh(); 
+          return; 
+        }
+      
+        // Si l'agent est en statut "booting", le code va simplement continuer et faire la suite (setTimeout)
+      }
+    } catch (err) {
+      console.error("Erreur lors de la recuperation de l'IP:", err);
+    }
+
+    // On attend 4 secondes avant de réessayer
+    setTimeout(() => waitForIP(srv, vmid, attempts + 1), 4000);
+  }
+
+  async function checkTaskStatus(srv, upid, action, vmid, fullLog) {
     const actionKey = `${srv}-${vmid}-${action}`;
     try {
       const res = await fetch(`${API_BASE}/server/${srv}/task/status?upid=${upid}`, { credentials: "include" });
-      if (!res.ok) { setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; }); return; }
+      if (!res.ok) { 
+        setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; }); 
+        return; 
+      }
+      
       const task = await res.json();
-      if (task[0] !== "stopped") { setTimeout(() => checkTaskStatus(srv, upid, action, vmid), 1000); return; }
+      
+      if (task[0] !== "stopped") { 
+        setTimeout(() => checkTaskStatus(srv, upid, action, vmid, fullLog), 1000); 
+        return; 
+      }
+
       const res2 = await fetch(`${API_BASE}/server/${srv}/task/log?upid=${upid}`, { credentials: "include" });
       const task2 = await res2.json();
-      addLog(`[Proxmox] ${action} sur VM ${vmid} : ${task2.full_log}`, task[1] === "OK" ? "success" : "error");
+
       setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
-      onRefresh();
+
+      // Si la tâche Proxmox s'est terminée sans erreur
+      if (task[1] === "OK") {
+        
+        // Affichage du log selon le niveau de détail demandé
+        if (fullLog) {
+          addLog(`[Proxmox] ${action} sur VM ${vmid} : ${task2.full_log}`, "success");
+        } else {
+          addLog(`[Proxmox] ${action} sur VM ${vmid} : ${task2.summary}`, "success");
+        }
+
+        // Logique post-action (IP ou simple rafraîchissement)
+        if (action === "start") {
+          setLoadingIPs(prev => ({ ...prev, [`${srv}-${vmid}`]: true }));
+          waitForIP(srv, vmid); 
+        } else {
+          onRefresh(); 
+        }
+
+      } else {
+        // En cas d'erreur renvoyée par Proxmox
+        addLog(`[Proxmox] Erreur lors de ${action} sur VM ${vmid} : ${task2.full_log}`, "error");
+        onRefresh();
+      }
+
     } catch (err) {
       console.error(err);
       setActionLoading(prev => { const n = { ...prev }; delete n[actionKey]; return n; });
@@ -260,6 +366,8 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
   }
 };
 
+  const usernamePrefix = user?.username ? `${user?.username}-` : "";
+
 
 
   return (
@@ -278,29 +386,31 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
     
       <div className="toolbar-row">
         <div className="create-side">
+          
           <button className="create-btn" onClick={onRefresh}>🔄 Refresh</button>
-          {!showInput && (
-            <button className="create-btn" onClick={() => setShowInput(true)}>Créer VM</button>
-          )}
-          {showInput && (
-            <>
-              {isMulti && (
-                <select value={createServer} onChange={e => setCreateServer(e.target.value)}>
-                  {availableServers.length > 0
-                    ? availableServers.map(s => <option key={s} value={s}>{s}</option>)
-                    : <option value="">Chargement...</option>}
-                </select>
-              )}
-              <input type="text" className="create-input" placeholder="Nom de la VM"
-                value={vmName} onChange={e => setVmName(e.target.value)} />
-              <button className="create-btn" onClick={createVMConfirm}>Confirmer</button>
-            </>
-          )}
+          
         </div>
+  
         <div className="search-row">
           <input placeholder="Rechercher une VM..." type="text"
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+  
+  
+  
+
+        {/* The NEW Single Create Modal */}
+        <CreateVmModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={createVMConfirm}
+          isMulti={isMulti}
+          availableServers={availableServers}
+          defaultServer={server || createServer}
+          defaultTemplate={selectedTemplateId}
+          defaultPool={user?.username}
+          defaultName={usernamePrefix}
+        />
       </div>
 
       {/* ─── Barre d'actions groupées ──────────────────────────────────────── */}
@@ -318,12 +428,16 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
             </button>
           ))}
           {/* Nouveau bouton Export CSV */}
-          <button 
-            className="create-btn" 
-            onClick={exportToCSV}
-            style={{ backgroundColor: "#27ae60"}}>
-            📥 Exporter CSV</button>
+          {(isAdmin || user?.permissions?.can_export_vms) && (
+            <button 
+              className="create-btn" 
+              onClick={exportToCSV}
+              style={{ backgroundColor: "#27ae60"}}>
+              📥 Exporter CSV</button>
+          )}
+
           <button className="create-btn" onClick={() => setSelectedVMs(new Set())}>✕ Désélectionner</button>
+
         </div>
       )}
       {/* ──────────────────────────────────────────────────────────────────── */}
@@ -358,30 +472,30 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
               </th>
             </tr>
             {showFilters && (
-  <tr className="filter-row">
-    {/* Première cellule (checkbox) */}
-    <th className="filter-cell-bg" /> 
+              <tr className="filter-row">
+                {/* Première cellule (checkbox) */}
+                  <th className="filter-cell-bg" /> 
     
-    {header.map(h => (
-      <th key={h} className="filter-cell-bg" style={{ padding: "4px 8px" }}>
-        {h !== "actions" && (
-          <input 
-            type="text" 
-            className="filter-input" 
-            placeholder="Filtrer..."
-            value={filters[h] || ""}
-            onChange={e => setFilters(prev => ({ ...prev, [h]: e.target.value }))}
-            onClick={e => e.stopPropagation()}
-          />
-        )}
-      </th>
-    ))}
+                    {header.map(h => (
+                      <th key={h} className="filter-cell-bg" style={{ padding: "4px 8px" }}>
+                        {h !== "actions" && (
+                          <input 
+                            type="text" 
+                            className="filter-input" 
+                            placeholder="Filtrer..."
+                            value={filters[h] || ""}
+                            onChange={e => setFilters(prev => ({ ...prev, [h]: e.target.value }))}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        )}
+                    </th>
+                    ))}
 
-    {/* Dernière cellule (actions) */}
-    <th className="filter-cell-bg" />
-  </tr>
-)}
-          </thead>
+                {/* Dernière cellule (actions) */}
+                <th className="filter-cell-bg" />
+              </tr>
+            )}
+        </thead>
           <tbody>
             {filtered.map(vm => (
               <tr
@@ -399,31 +513,67 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
                 <td>{vm.vmid}</td>
                 <td>{vm.name}</td>
                 <td>
-                {vm.ip && vm.ip !== "null" ? (
-                  <span style={{ fontWeight: '500', fontFamily: 'monospace' }}>{vm.ip}</span>
-                ) : (
-                  <span style={{ color: '#95a5a6', fontSize: '0.9em', fontStyle: 'italic' }}>
-                    Non disponible
-                  </span>
-                )}
-                </td>
-                <td>{vm.status}</td>
-                <td className="vm-actions">
-                  {["start", "stop", "shutdown", "delete"].map((action) => {
-                    const srv = vm.server || server;
-                    const actionKey = `${srv}-${vm.vmid}-${action}`;
-                    const isLoading = actionLoading[actionKey];
-                    return (
-                      <button key={action} className={`btn-${action}`}
-                        onClick={() => vmAction(vm.vmid, action, vm.server)}
-                        disabled={isLoading || Object.keys(actionLoading).some(k => k.startsWith(`${srv}-${vm.vmid}`))}
+                  {vm.template ? (
+                      // It is a template: show a discreet dash
+                      <span style={{ color: '#95a5a6' }}>—</span>
+                      ) : loadingIPs[`${vm.server || server}-${vm.vmid}`] ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6' }}>
+                      <ClipLoader color="#3b82f6" size={14} />
+                      <span style={{ fontSize: '0.85em', fontStyle: 'italic' }}>Recherche...</span>
+                      </div>
+
+                      ) : vm.ip && vm.ip !== "null" ? (
+                      // It is a VM and has an IP: show the IP in monospace
+                      <span style={{ fontWeight: '500', fontFamily: 'monospace' }}>{vm.ip}</span>
+                      ) : (
+                      // It is a VM but has no IP yet: show 'Non disponible'
+                      <span style={{ color: '#95a5a6', fontSize: '0.9em', fontStyle: 'italic' }}>
+                      Non disponible
+                      </span>
+                      )}
+                  </td>
+                  <td>
+                    {vm.template ? (
+                      // It is a template: explicitly show 'Template'
+                      <span style={{ color: '#95a5a6', fontSize: '0.9em', fontStyle: 'italic' }}>
+                      Template
+                      </span>
+                      ) : (
+                      // It is a standard VM: show its current status (running, stopped, etc.)
+                      vm.status
+                      )}
+                      </td>
+                  <td className="vm-actions">
+ 
+                    {!vm.template && (
+                      ["start", "stop", "shutdown", "delete"].map((action) => {
+                      const srv = vm.server || server;
+                      const actionKey = `${srv}-${vm.vmid}-${action}`;
+                      const isLoading = actionLoading[actionKey];
+      
+                      return (
+                        <button key={action} className={`btn-${action}`} onClick={() => vmAction(vm.vmid, action, vm.server)} 
+                          disabled={isLoading || Object.keys(actionLoading).some(k => k.startsWith(`${srv}-${vm.vmid}`))}
+                          >
+                          {isLoading ? <ClipLoader color="#ffffff" size={15} /> : action.charAt(0).toUpperCase() + action.slice(1)}
+                        </button>
+                      );
+                      })
+                    )}
+
+                  {/* Template specific actions */}
+                    {vm.template && (
+                      <button 
+                      className="btn-clone" 
+                      onClick={() => handleCloneTemplateClick(vm.vmid, vm.server)}
+                      title={`Clone template ${vm.vmid}`}
                       >
-                        {isLoading ? <ClipLoader color="#ffffff" size={15} /> : action.charAt(0).toUpperCase() + action.slice(1)}
+                      Clone
                       </button>
-                    );
-                  })}
+              
+                    )}
                 </td>
-              </tr>
+            </tr>
             ))}
           </tbody>
         </table>

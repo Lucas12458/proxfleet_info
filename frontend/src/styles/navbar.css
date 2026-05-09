@@ -69,8 +69,8 @@
 /* Style du bouton de thème */
 .theme-toggle-btn {
   background: none;
-  border: 1px solid var(--border-color); 
-  color: var(--text-main);
+  border: 1px solid; 
+  
   cursor: pointer;
   padding: 8px;
   border-radius: 8px; 

@@ -142,6 +142,7 @@ const loadAllVMs = useCallback(async () => {
             isMulti={false}
             onRefresh={refreshVMs}
             addLog={addLog}
+            user = {user}
           />
         ))
       )}

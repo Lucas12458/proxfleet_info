@@ -549,3 +549,8 @@ class ProxmoxManager:
             return False
         except:
             return True 
+        
+    def get_storage(self):
+        """
+        """
+        return self.proxmox.storage.get()

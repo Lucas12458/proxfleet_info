@@ -57,8 +57,9 @@
 
 /* --- Upload --- */
 .upload-section {
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--primary-color);
   border-radius: var(--border-radius);
+ 
   padding: 2rem 1.5rem;
   text-align: center;
   margin-bottom: 1.5rem;
@@ -66,9 +67,6 @@
   transition: border-color 0.2s ease;
 }
 
-.upload-section:hover {
-  border-color: var(--primary-color);
-}
 
 .clone-input {
   display: block;
@@ -217,3 +215,97 @@
 
 .progress-fill.success { background-color: var(--success-color); }
 .progress-fill.error   { background-color: var(--error-color); }
+
+
+/*Clonage seul */
+
+/* --- Formulaire et Inputs --- */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.create-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-surface); 
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.create-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* Effet de focus moderne */
+}
+
+.create-input:disabled {
+  background-color: var(--bg-body);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+select.create-input {
+  cursor: pointer;
+  appearance: auto; /* Garde le style natif du menu déroulant */
+}
+
+/* --- Footer et Boutons de la Modale --- */
+.modal-footer {
+  margin-top: 25px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color); /* Ligne de séparation subtile */
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: var(--bg-body);
+}
+
+.confirm-btn {
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  border: none;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
