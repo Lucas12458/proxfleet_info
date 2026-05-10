@@ -1,6 +1,7 @@
 // Navbar.jsx
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
 import "../styles/navbar.css";
 
 export function ThemeToggle() {
@@ -8,7 +9,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const theme = isDark ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.dataset.theme = theme;
     localStorage.setItem("theme", theme);
   }, [isDark]);
 
@@ -103,4 +104,9 @@ export default function Navbar({ user, onLogout }) {
       </div>
     </nav>
   );
+}
+
+Navbar.propTypes = {
+  onLogout: PropTypes.func,
+  user: PropTypes.object
 }

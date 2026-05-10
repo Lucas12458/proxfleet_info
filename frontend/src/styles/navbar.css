@@ -36,7 +36,7 @@
 
 /* Style de l'onglet actif */
 .nav-item.active {
-  background-color: #3498db;
+  background-color: var(--primary-color);
   color: white;
 }
 
@@ -120,7 +120,7 @@
 
 .logout-btn {
   padding: 10px 22px;
-  background: #e74c3c;
+  background: #b91c1c;
   color: white;
   border: none;
   border-radius: 50px;
@@ -128,15 +128,12 @@
   font-weight: 700;
   font-family: "Segoe UI", sans-serif;
   cursor: pointer;
-  transition: 0.2s;
   width: 180px; 
   min-width: 180px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  
   white-space: nowrap;
-  
   transition: all 0.2s ease;
 }
 

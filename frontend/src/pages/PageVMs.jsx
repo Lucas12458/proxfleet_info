@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { PulseLoader } from "react-spinners";
 import ListVM from "./ListVM.jsx";
+import PropTypes from 'prop-types';
+
 import "../styles/style_auth.css"; // A renommer plus tard en style_vms.css si tu veux
 
 export default function PageVMs({ user }) {
@@ -59,7 +61,7 @@ const loadAllVMs = useCallback(async () => {
       
           // 2. Force a full page redirect to the auth page
           // Using window.location guarantees the React state is wiped clean
-          window.location.href = "/auth"; 
+          globalThis.location.href = "/auth"; 
           return; 
         }
         if (res.ok) {
@@ -132,6 +134,7 @@ const loadAllVMs = useCallback(async () => {
           isMulti={true}
           onRefresh={refreshVMs}
           addLog={addLog}
+          user={user}
         />
       ) : (
         allServersVMs?.map((srv) => (
@@ -183,4 +186,8 @@ const loadAllVMs = useCallback(async () => {
       </div>
     </div>
   );
+}
+
+PageVMs.propTypes = {
+  user: PropTypes.object
 }

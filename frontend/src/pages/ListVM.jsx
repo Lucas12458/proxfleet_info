@@ -2,6 +2,8 @@ import "../styles/listvm.css";
 import { useState, useMemo, useEffect } from 'react';
 import { ClipLoader } from "react-spinners";
 import {CreateVmModal} from "./CloneVm";
+import PropTypes from 'prop-types';
+
 
 const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
 const API_BASE = `${BASE}api`;
@@ -289,11 +291,6 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
     setSort({ keyToSort: h, direction: h === sort.keyToSort ? (sort.direction === "asc" ? "desc" : "asc") : "asc" });
   }
 
-  const Arrow = ({ col }) => {
-    if (sort.keyToSort !== col) return null;
-    return <span style={{ marginLeft: 4 }}>{sort.direction === "asc" ? "▲" : "▼"}</span>;
-  };
-
   const allSelected = filtered.length > 0 && selectedVMs.size === filtered.length;
 
   const exportToCSV = () => {
@@ -334,7 +331,7 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
     // Iterate over the expected headers and extract from the mapped object
     return expectedHeaders.map(headerKey => {
       const rawValue = String(mappedRow[headerKey] || "");
-      const cleanValue = rawValue.replace(/"/g, '""');
+      const cleanValue =rawValue.replaceAll('"', '""');
       return `"${cleanValue}"`; 
     }).join(delimiter);
   });
@@ -458,7 +455,7 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
                 <th key={h} onClick={() => handleHeaderClick(h)} style={{ cursor: "pointer",textAlign: h === "actions" ? "center" : "left" }}>
                   {/* Condition pour IP en majuscules, sinon formatage classique */}
                   {h === "ip" ? "IP" : h.charAt(0).toUpperCase() + h.slice(1)}
-                  <Arrow col={h} />
+                  <Arrow col={h} sort={sort} />
                 </th>
               ))}
               <th style={{ width: "40px", textAlign: "center" }}>
@@ -581,3 +578,27 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
     </>
   );
 }
+
+const Arrow = ({ col, sort }) => {
+  if (sort.keyToSort !== col) return null;
+  return <span style={{ marginLeft: 4 }}>{sort.direction === "asc" ? "▲" : "▼"}</span>;
+};
+
+Arrow.propTypes = {
+  col: PropTypes.string.isRequired,
+  sort: PropTypes.shape({
+    keyToSort: PropTypes.string,
+    direction: PropTypes.string
+  }).isRequired
+};
+
+ListVM.propTypes = {
+  addLog: PropTypes.func,
+  allServersData: PropTypes.array,
+  isMulti: PropTypes.bool,
+  onRefresh: PropTypes.func,
+  server: PropTypes.string ,
+  user: PropTypes.object,
+  vms: PropTypes.array,
+
+} 

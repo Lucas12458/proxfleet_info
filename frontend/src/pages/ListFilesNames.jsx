@@ -42,9 +42,12 @@ export default function UsersTable() {
               <tr key={i}>
                 <td>{filename}</td> 
                 <td>
-                  <a href="#" onClick={(e) => handleClick(e, filename)}>
+                  <button 
+                    type="button" 
+                    className="btn-as-link" 
+                    onClick={(e) => handleClick(e, filename)}>
                     Sélectionner
-                  </a>
+                  </button>
                 </td>
               </tr>
             ))}

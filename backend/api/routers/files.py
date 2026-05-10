@@ -14,12 +14,15 @@ class CSVWrite(BaseModel):
     rows: list[dict]
     field_names: list[str]
 
-# Constants for SonarQube (S1192)
+
 MSG_CSV_NOT_FOUND = "CSV not found"
 MSG_INVALID_CSV = "Invalid CSV"
 MSG_UNABLE_TO_READ = "Unable to read CSV"
 MSG_UNABLE_TO_CREATE = "Unable to create CSV"
 MSG_UNABLE_TO_COPY = "Unable to copy CSV"
+
+CSV_MEDIA_TYPE = "text/csv"
+
 
 dotenv.load_dotenv()
 
@@ -112,7 +115,8 @@ async def create_upload_csv(
 ):
     """
     Endpoint to upload a new CSV file.
-    Restricted to administrators. Validates file type and prevents path traversal.
+    Restricted to administrators. 
+    Maintains a single-file policy: deletes any existing CSV before saving the new one.
     """
     if csv.content_type not in ALLOWED_TYPES:
         raise HTTPException(
@@ -123,22 +127,24 @@ async def create_upload_csv(
     try:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+        for existing_file in UPLOAD_DIR.iterdir():
+            if existing_file.is_file():
+                existing_file.unlink()
+
+       
         safe_filename = Path(csv.filename).name
         file_path = UPLOAD_DIR / safe_filename
 
-        if file_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="CSV file already exists"
-            )
-
+        
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(csv.file, buffer)
 
-        return {"path": str(file_path)}
+        return {
+            "message": "Fichier téléchargé avec succès (ancien fichier supprimé)",
+            "filename": safe_filename,
+            "path": str(file_path)
+        }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logging.error(f"Error while uploading CSV: {str(e)}")
         raise HTTPException(
@@ -147,7 +153,12 @@ async def create_upload_csv(
         )
     
 
-@router.post("/csv/upload-vm", status_code=status.HTTP_201_CREATED)
+@router.post("/csv/upload-vm", status_code=status.HTTP_201_CREATED,
+             responses={
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {"description": "Invalid file type"},
+        status.HTTP_409_CONFLICT: {"description": "CSV file already exists"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Unable to upload CSV"}
+    })
 async def create_upload_vms(
     csv: Annotated[UploadFile, File(...)], 
     session: Annotated[dict, Depends(auth.verify_admin_rights)]
@@ -167,7 +178,7 @@ async def create_upload_vms(
         file_path = EXPORT_DIR / safe_filename
 
         if file_path.exists():
-             raise HTTPException(status_code=409, detail="CSV file already exists")
+             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="CSV file already exists")
 
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(csv.file, buffer)
@@ -177,35 +188,40 @@ async def create_upload_vms(
         
     except Exception as e:
         logging.error(f"Error while uploading CSV: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unable to upload CSV")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to upload CSV")
     
-@router.get("/csv/download/{filename}")
+@router.get("/csv/download/{filename}",responses={
+        status.HTTP_404_NOT_FOUND: {"description": MSG_CSV_NOT_FOUND}
+    })
 async def download_csv(filename: str):
     safe_filename = os.path.basename(filename)
     file_path = UPLOAD_DIR / safe_filename
     
     if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="CSV file doesn't exists")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CSV file doesn't exists")
 
    
     return FileResponse(
         path=file_path, 
-        media_type="text/csv", 
+        media_type=CSV_MEDIA_TYPE, 
         filename=safe_filename
     )
 
-@router.get("/csv/download-export/{filename}")
+@router.get("/csv/download-export/{filename}",
+            responses={
+        status.HTTP_404_NOT_FOUND: {"description": MSG_CSV_NOT_FOUND}
+    })
 async def download_export_csv(filename: str):
     safe_filename = os.path.basename(filename)
     file_path = EXPORT_DIR / safe_filename
 
     if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="CSV file doesn't exists")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CSV file doesn't exists")
 
    
     return FileResponse(
         path=file_path, 
-        media_type="text/csv", 
+        media_type=CSV_MEDIA_TYPE, 
         filename=safe_filename
     )
 

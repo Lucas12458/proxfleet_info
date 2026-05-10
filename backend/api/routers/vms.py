@@ -332,49 +332,53 @@ async def clone_vm(host: str, request_data: CloneVMRequest,proxmox_manager: Anno
         
         raise ProxmoxAPIError(f"Cloning failed: {error_msg}")
     
-@router.post("/vm/clone-csv") # Route simplifiée pour le mode Bulk
-async def clone_csv_endpoint(
-    csv_name: str, # Reçu en query param
-    background_tasks: BackgroundTasks,
-    session: Annotated[dict, Depends(auth.verify_admin_rights)]
-):
+@router.post("/vm/clone-csv",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"description": "Invalid path (Path Traversal)"},
+        status.HTTP_404_NOT_FOUND: {"description": "CSV file not found"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal error while starting the clone process"}
+    }
+)
+async def clone_csv_endpoint(csv_name: str, background_tasks: BackgroundTasks,session: Annotated[dict, Depends(auth.verify_admin_rights)]):
     try:
-        # Résolution sécurisée du chemin
+        # Secure path resolution
         file_path = (EXPORT_DIR / csv_name).resolve()
         if not str(file_path).startswith(str(EXPORT_DIR.resolve())):
-            raise HTTPException(status_code=400, detail="Chemin invalide")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
             
         if not file_path.is_file():
-            raise HTTPException(status_code=404, detail="Fichier CSV introuvable")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CSV file not found")
 
-        # Récupération des tokens de tous les serveurs pour le mode Bulk
+        # Retrieve tokens from all servers for Bulk mode
         user = session.get("user")
-        all_tokens = session.get("servers", {}) # Dict { "host": {token_name, token_value} }
+        all_tokens = session.get("servers", {}) 
 
         job_id = str(uuid.uuid4())
 
         clone_jobs[job_id] = {
-        "status": "starting",
-        "current": 0, 
-        "total": 0
+            "status": "starting",
+            "current": 0, 
+            "total": 0
         }   
 
-        # Lancement de la tâche de fond
+        # Launch the background task
         background_tasks.add_task(
             background_clone_task,
             job_id=job_id,
             file_path=str(file_path),
             config_path=str(CONFIG_PATH),
             user=user,
-            all_tokens=all_tokens # On passe tout le dictionnaire
+            all_tokens=all_tokens 
         )
         
         return {"job_id": job_id, "status": "started"}
-        
-    except Exception as e:
-        logging.error(f"Erreur lancement clone : {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error starting clone task: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
 @router.get("/vm/clone-csv/status/{job_id}")
 async def get_clone_status(
     job_id: str, 

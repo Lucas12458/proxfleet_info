@@ -201,16 +201,18 @@
 }
 
 .status-running { 
-  background-color: rgba(59, 130, 246, 0.15); 
-  color: #60a5fa; 
+  background-color: var(--status-running-bg); 
+  color: var(--status-running-text); 
 }
+
 .status-success { 
-  background-color: rgba(16, 185, 129, 0.15); 
-  color: #34d399; 
+  background-color: var(--status-success-bg); 
+  color: var(--status-success-text); 
 }
+
 .status-error { 
-  background-color: rgba(239, 68, 68, 0.15); 
-  color: #f87171; 
+  background-color: var(--status-error-bg); 
+  color: var(--status-error-text); 
 }
 
 .progress-fill.success { background-color: var(--success-color); }

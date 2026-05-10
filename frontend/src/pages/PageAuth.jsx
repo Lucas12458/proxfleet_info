@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { PulseLoader, SyncLoader } from "react-spinners";
 import { useNavigate } from "react-router-dom"; // Pour la redirection
+import PropTypes from 'prop-types';
+
 import "../styles/style_auth.css";
 
 // On recupere la prop onLogin passee par App.jsx
@@ -178,4 +180,8 @@ export default function PageAuth({ onLogin }) {
       </form>
     </div>
   );
+}
+
+PageAuth.propTypes = {
+  onLogin: PropTypes.func
 }

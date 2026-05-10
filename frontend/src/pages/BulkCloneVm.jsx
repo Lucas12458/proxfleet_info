@@ -1,4 +1,5 @@
 import { useState, useEffect} from "react";
+import PropTypes from 'prop-types';
 import "../styles/cloneVm.css";
 
 export function CloneModal({ isOpen, onClose, onStartClone, status, progress }) {
@@ -31,13 +32,15 @@ export function CloneModal({ isOpen, onClose, onStartClone, status, progress }) 
         {/* Zone de fichier (cachée si le clonage est en cours ou terminé avec succès) */}
         {status === 'idle' || status === 'error' ? (
           <div className="upload-section">
-            <label>Sélectionnez le fichier CSV de configuration</label>
-            <input 
-              type="file" 
-              accept=".csv" 
-              className="file-input"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-            />
+            <label htmlFor="csv-input">Sélectionnez le fichier CSV de configuration</label>
+              <input 
+                id="csv-input"
+                type="file" 
+                accept=".csv" 
+                className="file-input"
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+              />
+              
           </div>
         ) : null}
 
@@ -88,3 +91,11 @@ export function CloneModal({ isOpen, onClose, onStartClone, status, progress }) 
     </div>
   );
 }
+
+CloneModal.propTypes = {
+    isOpen: PropTypes.bool,
+    onClose: PropTypes.func, 
+    onStartClone: PropTypes.func, 
+    progress: PropTypes.number, 
+    status: PropTypes.string 
+};

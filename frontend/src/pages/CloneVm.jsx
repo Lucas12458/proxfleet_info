@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
+
 import "../styles/cloneVm.css";
 
 // Ensure API_BASE is defined for the fetch requests
@@ -58,7 +60,7 @@ export function CreateVmModal({
           const data = await response.json();
           
           // Filter out storages that do not support VM disk images
-          const validStorages = data.filter(s => !s.disable &&s.content && s.content.includes("images"));
+          const validStorages = data.filter(s => !s.disable && s.content?.includes("images"));
           setAvailableStorages(validStorages);
 
           // Automatically select the first valid storage if current selection is empty or invalid
@@ -137,8 +139,8 @@ export function CreateVmModal({
           
           {isMulti && (
             <div className="form-group">
-              <label>Target Server</label>
-              <select value={targetServer} onChange={e => setTargetServer(e.target.value)} className="create-input">
+              <label htmlFor="target-server-select">Choix du serveur</label>
+              <select id="target-server-select" value={targetServer} onChange={e => setTargetServer(e.target.value)} className="create-input">
                 {availableServers.length > 0 ? (
                   availableServers.map(s => <option key={s} value={s}>{s}</option>)
                 ) : (
@@ -149,28 +151,29 @@ export function CreateVmModal({
           )}
 
           <div className="form-group">
-            <label>Nom de la VM (Requis)</label>
-            <input type="text" name="name" value={params.name} onChange={handleChange} className="create-input" placeholder="e.g., web-server-01" />
+            <label htmlFor="vm-name">Nom de la VM (Requis)</label>
+            <input id="vm-name" type="text" name="name" value={params.name} onChange={handleChange} className="create-input" placeholder="e.g., web-server-01" />
           </div>
 
           <div className="form-group">
-            <label>ID (Laisser vide pour une sélection automatique)</label>
-            <input type="number" name="newid" value={params.newid} onChange={handleChange} className="create-input" placeholder="e.g., 150" />
+            <label htmlFor="vm-id-input">ID (Laisser vide pour une sélection automatique)</label>
+            <input id="vm-id-input" type="number" name="newid" value={params.newid} onChange={handleChange} className="create-input" placeholder="e.g., 150" />
           </div>
 
           <div className="form-group">
-            <label>ID du template</label>
-            <input type="number" name="template" value={params.template} onChange={handleChange} className="create-input" />
+            <label htmlFor="template-id-input">ID du template</label>
+            <input id="template-id-input" type="number" name="template" value={params.template} onChange={handleChange} className="create-input" />
           </div>
 
           <div className="form-group">
-            <label>Pool</label>
-            <input type="text" name="pool" value={params.pool} onChange={handleChange} className="create-input" />
+            <label htmlFor="pool-input">Pool</label>
+            <input id="pool-input" type="text" name="pool" value={params.pool} onChange={handleChange} className="create-input" />
           </div>
 
           <div className="form-group">
-            <label>Stockage</label>
+            <label htmlFor="storage-select">Stockage</label>
             <select 
+              id="stockage-select"
               name="storage" 
               value={params.storage} 
               onChange={handleChange} 
@@ -206,4 +209,20 @@ export function CreateVmModal({
       </div>
     </div>
   );
+}
+
+
+CreateVmModal.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func, 
+  onSubmit: PropTypes.func,
+  isMulti: PropTypes.bool,
+  availableServers: PropTypes.array,
+  defaultServer: PropTypes.string,
+  defaultTemplate: PropTypes.number,
+  defaultPool: PropTypes.string,
+  defaultName: PropTypes.string,
+
+
+
 }

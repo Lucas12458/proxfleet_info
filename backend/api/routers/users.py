@@ -3,7 +3,7 @@ from proxfleet.proxmox_etu import ProxmoxEtu
 from typing import Annotated
 from api.routers import auth
 from api.utils.roles import get_user_permissions,update_user_permissions,remove_admin_user,add_admin_user,UserPermissions,UserPermissionsUpdate
-from fastapi import Depends,APIRouter,HTTPException
+from fastapi import Depends,APIRouter,HTTPException,status
 from api.exceptions.exceptions import AdminConfigurationError,PermissionsError
 
 from pydantic import BaseModel
@@ -89,8 +89,11 @@ async def add_user_to_group(group:str,userid:str,proxmox_manager:Annotated[Proxm
 async def delete_usmb_users(proxmox_manager:Annotated[ProxmoxManager,Depends(get_proxmox_manager)]):
     return proxmox_manager.delete_usmb_users()
 
-@router.get("/user/{userid}/permissions")
-async def api_get_permissions(userid: str,session=Depends(auth.get_current_session)):
+@router.get("/user/{userid}/permissions",
+            responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Business logic error while reading permissions"}
+    })
+async def api_get_permissions(userid: str,session:Annotated[dict,Depends(auth.get_current_session)]):
     """
     Retrieves the application-level permissions for a specific user.
 
@@ -107,13 +110,16 @@ async def api_get_permissions(userid: str,session=Depends(auth.get_current_sessi
         return await get_user_permissions(userid)
     except PermissionsError as e:
         # Translate the business logic error into an HTTP error
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@router.put("/user/{userid}/permissions")
+@router.put("/user/{userid}/permissions",
+            responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Business logic error while updating permissions"}
+    })
 async def api_update_permissions(
     userid: str, 
     data: UserPermissionsUpdate,
-    session: dict = Depends(auth.verify_admin_rights) # Only an admin can change permissions
+    session: Annotated[dict,Depends(auth.verify_admin_rights) ]   
 ):
     """
     Main entry point to update user rights. 
@@ -138,4 +144,4 @@ async def api_update_permissions(
         return {"message": f"All privileges updated successfully for {userid}"}
 
     except PermissionsError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

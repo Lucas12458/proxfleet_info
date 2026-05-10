@@ -79,6 +79,21 @@
   font-weight: 600;
 }
 
+.delete-btn, .download-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 4px; /* Ou 50% pour des boutons ronds */
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    background: transparent;
+    color: var(--text-muted);
+}
+
 .delete-btn {
   background: none;
   border: none;
@@ -92,8 +107,13 @@
 }
 
 .delete-btn:hover {
-  color: #e74c3c;
-  background: rgba(231,76,60,0.1);
+  color: var(--delete-btn-text-hv);
+  background: var(--delete-btn-bg-hv);
+}
+
+.download-btn:hover {
+    background: var(--download-btn-bg-hv);
+    color: var(--download-btn-text-hv);
 }
 
 .upload-btn {
@@ -192,6 +212,33 @@
   font-weight: bold;
    color: var(--text-main);
 }
+
+.btn-as-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #3b82f6; /* Votre couleur de lien habituelle */
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.btn-as-link:hover {
+  color: #2563eb; /* Couleur au survol */
+}
+
+.btn-as-text {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+
 .auth-link-btn {
   display: inline-block;
   padding: 8px 16px;
@@ -258,11 +305,43 @@
   transition: all 0.2s;
 }
 .filter-toggle-btn:hover { border-color: #2d6cdf; color: #2d6cdf; }
-.filter-toggle-btn.active { background: #2d6cdf; border-color: #2d6cdf; color: red; }
-.filter-badge { background: #e74c3c; color: white; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 1px 6px; }
-.filter-toggle-btn.active .filter-badge { background: white; color: #e74c3c; }
-.clear-filters-btn { padding: 8px 14px; background: none; border: 1.5px solid #e74c3c; border-radius: 6px; font-size: 13px; font-weight: 600; color: #e74c3c; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-.clear-filters-btn:hover { background: #e74c3c; color: white; }
+.filter-toggle-btn.active { 
+  background: #1d4ed8; 
+  border-color: #1d4ed8; 
+  color: white; 
+}
+
+.filter-badge { 
+  background: #b91c1c; 
+  color: white; 
+  font-size: 11px; 
+  font-weight: 700; 
+  border-radius: 10px; 
+  padding: 1px 6px; 
+}
+
+.filter-toggle-btn.active .filter-badge { 
+  background: white; 
+  color: #b91c1c; 
+}
+
+.clear-filters-btn { 
+  padding: 8px 14px; 
+  background: none; 
+  border: 1.5px solid #b91c1c; 
+  border-radius: 6px; 
+  font-size: 13px; 
+  font-weight: 600; 
+  color: #b91c1c; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  white-space: nowrap; 
+}
+
+.clear-filters-btn:hover { 
+  background: #b91c1c; 
+  color: white; 
+}
 
 /* === COLUMN FILTERS === */
 /* === COLUMN FILTERS === */

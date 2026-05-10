@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
+
 
 const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
 const API_BASE = `${BASE}api`;
@@ -15,9 +17,8 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
     can_export_vms: false
   });
 
-    const isEditingSelf = selectedUser === currentUser?.username;
-    console.log(selectedUser);
-    console.log(isEditingSelf);
+  const isEditingSelf = selectedUser === currentUser?.username;
+    
 
   // Charger la liste des utilisateurs à l'ouverture de la modale
   useEffect(() => {
@@ -156,8 +157,9 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
         <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           
           <div className="form-group">
-            <label>Sélectionner un utilisateur</label>
+            <label htmlFor="user-select">Sélectionner un utilisateur</label>
             <select 
+              id="user-select"
               className="create-input" 
               value={selectedUser} 
               onChange={(e) => setSelectedUser(e.target.value)}
@@ -175,7 +177,7 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
             {/* Section Super Admin - Mise en évidence */}
             <div className="form-group" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: "15px", paddingBottom: "15px", borderBottom: "1px solid var(--border-color)" }}>
               <div>
-                <label style={{ margin: 0, cursor: "pointer", fontWeight: "bold", color: permissions.is_admin ? "#ef4444" : "var(--text-main)" }} onClick={() => !isEditingSelf && handleToggle('is_admin')}>
+                <label htmlFor="admin-input" style={{ margin: 0, cursor: "pointer", fontWeight: "bold", color: permissions.is_admin ? "#ef4444" : "var(--text-main)" }}>
                   Administrateur Global
                 </label>
                 <div style={{ fontSize: "0.8em", color: "var(--text-muted)", marginTop: "4px" }}>
@@ -185,6 +187,7 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
                 </div>
               </div>
               <input 
+                id="admin-input"
                 type="checkbox" 
                 checked={permissions.is_admin} 
                 onChange={() => handleToggle('is_admin')}
@@ -196,10 +199,11 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
             {/* Privilèges spécifiques */}
             <div style={{ opacity: permissions.is_admin ? 0.5 : 1, transition: "opacity 0.2s" }}>
               <div className="form-group" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                <label style={{ margin: 0, cursor: permissions.is_admin ? "not-allowed" : "pointer" }} onClick={() => !permissions.is_admin && handleToggle('can_modify_csv')}>
+                <label htmlFor="modify-input" style={{ margin: 0, cursor: permissions.is_admin ? "not-allowed" : "pointer" }}>
                   Modifier les fichiers CSV
                 </label>
                 <input 
+                  id="modify-input"
                   type="checkbox" 
                   checked={permissions.is_admin || permissions.can_modify_csv} 
                   onChange={() => handleToggle('can_modify_csv')}
@@ -209,10 +213,11 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
               </div>
 
               <div className="form-group" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                <label style={{ margin: 0, cursor: permissions.is_admin ? "not-allowed" : "pointer" }} onClick={() => !permissions.is_admin && handleToggle('can_bulk_clone')}>
+                <label htmlFor="bulk-input" style={{ margin: 0, cursor: permissions.is_admin ? "not-allowed" : "pointer" }}>
                   Cloner des VMs en lot
                 </label>
                 <input 
+                  id="bulk-input"
                   type="checkbox" 
                   checked={permissions.is_admin || permissions.can_bulk_clone} 
                   onChange={() => handleToggle('can_bulk_clone')}
@@ -222,10 +227,11 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
               </div>
 
               <div className="form-group" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ margin: 0, cursor: permissions.is_admin ? "not-allowed" : "pointer" }} onClick={() => !permissions.is_admin && handleToggle('can_export_vms')}>
+                <label htmlFor="export-input" style={{ margin: 0, cursor: permissions.is_admin ? "not-allowed" : "pointer" }}>
                   Exporter des VMs (CSV)
                 </label>
                 <input 
+                  id="export-input"
                   type="checkbox" 
                   checked={permissions.is_admin || permissions.can_export_vms} 
                   onChange={() => handleToggle('can_export_vms')}
@@ -252,4 +258,11 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
       </div>
     </div>
   );
+}
+
+PermissionsModal.propTypes = {
+  currentUser: PropTypes.object,
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func,
+  server: PropTypes.string
 }

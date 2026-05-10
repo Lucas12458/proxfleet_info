@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useCsvData } from "../hooks/useCsvData";
 import {CloneModal} from "./BulkCloneVm";
 import { PermissionsModal } from "./PermissionsModal";
+import PropTypes from 'prop-types';
+
 import "../styles/userTable.css";
 
 export default function UsersTable({ user }) {
@@ -36,7 +38,7 @@ export default function UsersTable({ user }) {
       // Handle session expiration
       if (response.status === 401) {
         sessionStorage.removeItem("user_session");
-        window.location.href = "/auth";
+        globalThis.location.href = "/auth";
         return;
       }
 
@@ -48,7 +50,7 @@ export default function UsersTable({ user }) {
       const blob = await response.blob();
     
       // Generate a temporary URL for the Blob
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = globalThis.URL.createObjectURL(blob);
     
       // Create a hidden anchor element to trigger the download
       const link = document.createElement("a");
@@ -60,7 +62,7 @@ export default function UsersTable({ user }) {
     
       // Clean up the DOM and release memory
       link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      globalThis.URL.revokeObjectURL(downloadUrl);
 
     } catch (error) {
       console.error("Error while downloading the CSV file:", error);
@@ -77,7 +79,7 @@ export default function UsersTable({ user }) {
       // Handle session expiration
       if (response.status === 401) {
         sessionStorage.removeItem("user_session");
-        window.location.href = "/auth";
+        globalThis.location.href = "/auth";
         return;
       }
 
@@ -89,7 +91,7 @@ export default function UsersTable({ user }) {
       const blob = await response.blob();
     
       // Generate a temporary URL for the Blob
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = globalThis.URL.createObjectURL(blob);
     
       // Create a hidden anchor element to trigger the download
       const link = document.createElement("a");
@@ -101,7 +103,7 @@ export default function UsersTable({ user }) {
     
       // Clean up the DOM and release memory
       link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      globalThis.URL.revokeObjectURL(downloadUrl);
 
     } catch (error) {
       console.error("Error while downloading the CSV file:", error);
@@ -139,7 +141,7 @@ export default function UsersTable({ user }) {
          
           {(isAdmin || user?.permissions?.can_modify_csv) && (
             
-            <label className="upload-btn">+ Import CSV <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleUpload}/>
+            <label className="upload-btn">{filenames.length > 0 ? "+ Remplacer le CSV" : "+ Import CSV" } <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleUpload}/>
             </label>
           )}
 
@@ -149,15 +151,32 @@ export default function UsersTable({ user }) {
             <ul>
               {filenames.map((filename, i) => (
                 <li key={i} className={`file-item ${selectedFile === filename ? "active" : ""}`}>
-                  <span className="file-name" onClick={() => loadFile(filename)}>{filename}</span>
+                  <button 
+                    type="button"
+                    className="file-name btn-as-text" 
+                    onClick={() => loadFile(filename)}
+                    title={`Charger ${filename}`}
+                  >
+                  {filename}
+                  </button>
                   {isAdmin && (
                     <>
                     <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>✕</button>
                     <button className="action-btn download-btn" onClick={() => handleDownload(filename)} title="Download">
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                      <polyline points="7 10 12 15 17 10"></polyline>
-                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                      <svg 
+                        viewBox="0 0 24 24" 
+                        width="16" 
+                        height="16" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                        style={{ display: 'block' }}
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
                       </svg>
                     </button>
                     </>
@@ -185,13 +204,17 @@ export default function UsersTable({ user }) {
             <ul>
             {VMfilenames.map((filename, i) => (
               <li key={i} className={`file-item ${selectedFile === filename ? "active" : ""}`}>
-                <span className="file-name" onClick={() => loadFile(filename)}>
-                  {filename}
-                </span>
-            
-              
+                <button 
+                    type="button"
+                    className="file-name btn-as-text" 
+                    onClick={() => loadFile(filename)}
+
+                  >{filename}
+
+                </button>
+               
                 <button className="delete-btn" onClick={() => deleteFile(filename)} title={`Delete ${filename}`}>
-                  ✕
+                    ✕
                 </button>
                 <button className="action-btn download-btn" onClick={() => handleVMDownload(filename)} title="Download">
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -329,4 +352,8 @@ export default function UsersTable({ user }) {
     </div>
     
   );
+}
+
+UsersTable.propTypes = {
+  user: PropTypes.object
 }

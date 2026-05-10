@@ -18,7 +18,7 @@
 
 .logout-btn {
   padding: 10px 22px;
-  background: #e74c3c;
+  background: #b91c1c;
   color: white;
   border: none;
   border-radius: 50px;
@@ -26,7 +26,6 @@
   font-weight: 700;
   font-family: "Segoe UI", sans-serif;
   cursor: pointer;
-  transition: 0.2s;
   width: 180px; 
   min-width: 180px;
   display: inline-flex;
@@ -73,12 +72,6 @@
   color: var(--text-main);
 }
 
-/*
-.vm-table tr:nth-child(even) {
-  background: var(--bg-table-stripe);
-}
-
-*/
 
 .vm-table th svg.asc {
   width: 12px;
@@ -162,9 +155,10 @@
   width: 250px;
 }
 
-.create-btn {
+.create-btn,
+.refresh-btn {
   padding: 10px 22px;
-  background: #3498db;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -174,11 +168,12 @@
   transition: 0.2s;
   white-space: nowrap;
 }
-
 .create-btn:hover {
   background: #2980b9;
   transform: scale(1.05);
 }
+
+.refresh-btn:hover { background: #2980b9; transform: scale(1.05); }
 
 th:hover svg { fill: #ffffff; }
 
@@ -322,21 +317,6 @@ th:hover svg { fill: #ffffff; }
   color: #1a202c;
   cursor: pointer;
 }
-
-.refresh-btn {
-  padding: 10px 22px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.2s;
-  white-space: nowrap;
-}
-
-.refresh-btn:hover { background: #2980b9; transform: scale(1.05); }
 
 /*Les logs*/
 /* Console */
