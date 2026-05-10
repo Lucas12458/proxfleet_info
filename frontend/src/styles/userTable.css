@@ -243,7 +243,7 @@
 .search-input::placeholder { color: #bbb; }
 .clear-input { background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px; }
 .clear-input:hover { color: #e74c3c; }
-.filter-toggle-btn {
+.userTable .filter-toggle-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -253,25 +253,46 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-main);
+  color: red;
   cursor: pointer;
   transition: all 0.2s;
 }
 .filter-toggle-btn:hover { border-color: #2d6cdf; color: #2d6cdf; }
-.filter-toggle-btn.active { background: #2d6cdf; border-color: #2d6cdf; color: white; }
+.filter-toggle-btn.active { background: #2d6cdf; border-color: #2d6cdf; color: red; }
 .filter-badge { background: #e74c3c; color: white; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 1px 6px; }
 .filter-toggle-btn.active .filter-badge { background: white; color: #e74c3c; }
 .clear-filters-btn { padding: 8px 14px; background: none; border: 1.5px solid #e74c3c; border-radius: 6px; font-size: 13px; font-weight: 600; color: #e74c3c; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .clear-filters-btn:hover { background: #e74c3c; color: white; }
 
 /* === COLUMN FILTERS === */
+/* === COLUMN FILTERS === */
 .column-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
   background: var(--bg-surface);
   border: 1.5px solid var(--border-color);
   border-radius: 8px;
 }
-.column-filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
-.column-filter-label { font-size: 11px; font-weight: 700; color: #2d6cdf; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.column-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+  flex: 1;
+}
+
+.column-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2d6cdf;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .column-filter-input {
   padding: 6px 8px;
   border: 1.5px solid var(--border-color);
@@ -280,8 +301,10 @@
   font-size: 13px;
   outline: none;
   color: var(--text-main);
+  transition: border-color 0.2s;
 }
 .column-filter-input:focus { border-color: #2d6cdf; }
+.column-filter-input::placeholder { color: #bbb; }
 
 /* === LOGIN HINT === */
 .login-hint { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; margin-bottom: 12px; background: #f0f4ff; border: 1px dashed #2d6cdf; border-radius: 6px; text-align: center; }
