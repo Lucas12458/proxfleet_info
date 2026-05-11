@@ -219,7 +219,7 @@ th:hover svg { fill: #ffffff; }
   border-radius: 10px;
   outline: none;
   background-color: var(--bg-surface);
-  color: #1a202c;
+  color: var(--text-main);
   font-size: 14px;
   transition: all 0.2s ease;
 }

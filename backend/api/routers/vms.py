@@ -276,6 +276,12 @@ async def get_vm_network(host: str, vmid: int, proxmox_vm: Annotated[ProxmoxVM,D
                 "management_ip": None, 
                 "agent_status": "booting"
             }
+
+        elif "no management ip found" in error_msg:
+            return {
+                "management_ip": None, 
+                "agent_status": "no_ip_detected"
+            }
             
         # 4. Erreurs inconnues
         else:

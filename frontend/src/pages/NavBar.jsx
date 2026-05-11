@@ -62,7 +62,7 @@ export default function Navbar({ user, onLogout }) {
   return (
     <nav className={`navbar ${location.pathname === '/auth' ? 'navbar-center-only' : ''}`}>
       <div className="navbar-brand">
-        <Link to="/">ProxFleet</Link>
+        <Link to="/vms">ProxFleet</Link>
       </div>
 
       <div className="navbar-links">
