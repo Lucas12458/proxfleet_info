@@ -198,7 +198,7 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
   async function waitForIP(srv, vmid, attempts = 0) {
     const currentVmKey = `${srv}-${vmid}`;
     // Timeout de sécurité maintenu (environ 40 secondes)
-    if (attempts > 10) {
+    if (attempts > 30) {
       addLog(`[Network] Delai d'attente depasse pour l'IP de la VM ${vmid}`, "error");
       setLoadingIPs(prev => { const n = { ...prev }; delete n[currentVmKey]; return n; });
       onRefresh(); 
@@ -221,8 +221,8 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
       
         // Si une IP est disponible
         if (status.management_ip && status.management_ip !== "null" && status.management_ip !== "") {
+          await onRefresh();
           setLoadingIPs(prev => { const n = { ...prev }; delete n[currentVmKey]; return n; });
-          onRefresh(); 
           return; 
         }
       

@@ -49,32 +49,38 @@ class ProxmoxManager:
     
     def list_vms(self):
         """
-        List all VMs on the Proxmox server and fetch IPs only for owned VMs.
+        Lists all VMs and retrieves IPs if the user has sufficient permissions.
         """
         node = self.get_node_name()
-        
+
         # 1. Fetch all VMs visible to the user on the node
         vms = self.proxmox.nodes(node).qemu.get()
 
-        # 2. Retrieve the IDs of the VMs that the user actually has rights to (via the pool)
-        owned_vmids = set()
+        # 2. Fetch global permissions for the connected user
+        # This call returns a dictionary of paths (e.g., /vms/100) and associated privileges
         try:
-            user = self.user.split("@",1)
-            pool_data = self.proxmox.pools(user[0]).get()
-            
-            owned_vmids = {
-                member["vmid"] for member in pool_data.get("members", []) 
-                if member.get("type") == "qemu"
-            }
+            user_perms = self.proxmox.access.permissions.get()
         except Exception:
-            # If the user does not have read access to the pool, the set remains empty
-            pass
+            user_perms = {}
+
+        def has_vm_permission(vmid, privilege):
+            """
+            Checks if the user has a specific privilege on a VM.
+            Handles inheritance (rights on '/' apply to all resources).
+            """
+            path = f"/vms/{vmid}"
+            # Check privileges at the specific VM path AND the root path (for admins)
+            vm_privs = user_perms.get(path, {})
+            root_privs = user_perms.get("/", {})
+
+            return vm_privs.get(privilege) == 1 or root_privs.get(privilege) == 1
 
         def process_vm(vm):
             vmid = vm.get("vmid")
-            
-            # 3. Double condition: VM is running AND present in the authorized pool
-            if vm.get("status") == "running" and vmid in owned_vmids:
+
+            # 3. Check for VM.Audit privilege
+            # This is the standard privilege required to read VM status and configuration
+            if vm.get("status") == "running" and has_vm_permission(vmid, "VM.Audit"):
                 try:
                     proxmox_vm = ProxmoxVM(manager=self, vmid=vmid)
                     vm["ip"] = proxmox_vm.management_ip()
@@ -83,6 +89,7 @@ class ProxmoxManager:
             else:
                 vm["ip"] = None
 
+        # Use multithreading to accelerate IP retrieval via the Proxmox agent
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             list(executor.map(process_vm, vms))
 
