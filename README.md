@@ -58,6 +58,19 @@ pip install -r requirements.txt
 ```
 
 
+### Environment Variables (Development)
+
+For local development, create a `.env` file in the project root directory
+
+```bash
+export ENV = development
+export UPLOAD_DIR = /app/data
+export EXPORT_DIR = /app/export
+export ADMIN_CONFIG_PATH = /app/config/admins.json
+export LOG = "DEBUG"
+```
+
+
 ## Running the API
 
 Navigate to the backend directory
@@ -137,7 +150,17 @@ Using Bun
 bun build
 ```
 
+# Deployement (Production)
 
+For production environments, the application is containerized using Docker. This method handles environment variables directly via the docker-compose.yml file and the deployment script.
+
+Please refer to the [Deployment & Exploitation Guide](./DEPLOYMENT.md) for detailed instructions on:
+
+  - Setting up production variables.
+
+  - Running the application with Docker Compose.
+
+  - Managing persistent volumes.
 
 ## Development Guidelines
 
