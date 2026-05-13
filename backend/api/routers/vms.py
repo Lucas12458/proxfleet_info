@@ -15,7 +15,7 @@ from fastapi import Depends, APIRouter, HTTPException,status,BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel,Field
 from pathlib import Path
-from typing import Annotated,Dict,Any
+from typing import Annotated,Dict,Any,Optional
 
 import uuid
 import os
@@ -44,6 +44,11 @@ class CloneVMRequest(BaseModel):
     template : int
     pool: str
     storage: str 
+
+class NetworkUpdateSchema(BaseModel):
+    bridge: str
+    tag: Optional[int] = None
+
 
 
 def get_token_for_host(host: str, session: dict) -> dict:
@@ -236,56 +241,109 @@ async def vm_action(vmid: int, action_data: VMAction, proxmox_vm: Annotated[Prox
         raise ProxmoxAPIError(f"Failed to execute {action_data.action} on VM {vmid}: {str(e)}")
 
     
-@router.get("/server/{host}/vm/{vmid}/network")
-async def get_vm_network(host: str, vmid: int, proxmox_vm: Annotated[ProxmoxVM,Depends(get_proxmox_vm)]):
+@router.get(
+    "/server/{host}/vm/{vmid}/network",
+    responses={
+        status.HTTP_403_FORBIDDEN: {"description": "Insufficient permissions"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Unexpected Proxmox API error"}
+    }
+)
+async def get_vm_network(
+    host: str, 
+    vmid: int, 
+    proxmox_vm: Annotated[ProxmoxVM, Depends(get_proxmox_vm)]
+):
     """
     Fetch network interface configurations and the primary management IP address of the VM.
-    Gracefully handles QEMU agent states for frontend polling.
+    Gracefully handles QEMU agent states and missing IPs for frontend polling.
     """
+    # 1. ALWAYS fetch interfaces first (Works even if VM is powered off)
+    interfaces = proxmox_vm.get_network_interfaces()
+    
     try:
-        # Si l'agent répond parfaitement
+        # 2. Try to fetch IP (Will throw exception if VM is stopped or agent is down)
+        management_ip = proxmox_vm.management_ip()
+        
         return {
-            "interfaces": proxmox_vm.get_network_interfaces(), 
-            "management_ip": proxmox_vm.management_ip(),
+            "interfaces": interfaces, 
+            "management_ip": management_ip,
             "agent_status": "ok"
         }
         
     except Exception as e:
         error_msg = str(e).lower()
-        logging.error(f"{error_msg}")
+        logging.error(f"Network fetch error for VM {vmid} on {host}: {error_msg}")
         
-        # 1. Erreurs d'autorisation (On garde la levée d'erreur stricte)
+        # 1. Authorization errors (Strict enforcement)
         if "403" in error_msg or "permission check failed" in error_msg:
-            raise ProxmoxUnauthorizedError(
-                host=host, 
-                user="current_user", 
-                reason=f"Insufficient permissions (VM.Monitor) for VM {vmid}"
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions (VM.Monitor) for VM {vmid}"
             )
             
-        # 2. Cas spécifique : L'agent QEMU n'est pas coché dans le hardware (ex: Routeurs)
-        # On ne lève PAS d'erreur, on renvoie une réponse JSON standard
+        # For all following cases, WE MUST INCLUDE the 'interfaces' variable 
+        # so the React modal can still display them!
+            
+        # 2. QEMU Agent not configured in hardware
         elif "not configured" in error_msg:
             return {
+                "interfaces": interfaces,
                 "management_ip": None, 
                 "agent_status": "not_configured"
             }
             
-        # 3. Cas spécifique : L'agent est activé mais le service n'a pas encore démarré
-        elif "not running" in error_msg or "agent" in error_msg or "500" in error_msg:
+        # 3. VM is stopped, booting, or agent service not started yet
+        elif "not running" in error_msg or "agent" in error_msg or "500" in error_msg or "qga" in error_msg:
             return {
+                "interfaces": interfaces,
                 "management_ip": None, 
-                "agent_status": "booting"
+                "agent_status": "booting_or_stopped"
             }
 
+        # 4. Agent is running but hasn't received an IP from DHCP yet
         elif "no management ip found" in error_msg:
             return {
+                "interfaces": interfaces,
                 "management_ip": None, 
                 "agent_status": "no_ip_detected"
             }
             
-        # 4. Erreurs inconnues
+        # 5. Unknown/Critical errors (Still return interfaces to allow editing)
         else:
-            raise ProxmoxAPIError(f"Internal error while reading network data: {error_msg}")
+            return {
+                "interfaces": interfaces,
+                "management_ip": None,
+                "agent_status": "error_unknown"
+            }
+
+@router.put(
+    "/server/{host}/vm/{vmid}/network/{net_name}",
+    responses={
+        status.HTTP_200_OK: {"description": "Interface updated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Interface not found"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Update failed"}
+    }
+)
+async def api_update_vm_network(
+    host: str, 
+    vmid: int, 
+    net_name: str, 
+    data: NetworkUpdateSchema,
+    proxmox_vm: Annotated[ProxmoxVM, Depends(get_proxmox_vm)]
+):
+    """
+    Update a specific network interface bridge or VLAN tag.
+    """
+    success = proxmox_vm.update_network_interface(net_name, bridge=data.bridge, tag=data.tag)
+    
+    if not success:
+        # Check if it was a 404 (interface missing) or a 500 (API error)
+        config = proxmox_vm.manager.proxmox.nodes(proxmox_vm.node).qemu(vmid).config.get()
+        if net_name not in config:
+            raise HTTPException(status_code=404, detail="Interface not found")
+        raise HTTPException(status_code=500, detail="Failed to update interface")
+        
+    return {"message": f"Interface {net_name} updated on VM {vmid}"}
         
 @router.post("/server/{host}/vm/clone")
 async def clone_vm(host: str, request_data: CloneVMRequest,proxmox_manager: Annotated[ProxmoxManager, Depends(get_proxmox_manager)]):

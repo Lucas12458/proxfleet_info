@@ -78,9 +78,9 @@ class ProxmoxManager:
         def process_vm(vm):
             vmid = vm.get("vmid")
 
-            # 3. Check for VM.Audit privilege
-            # This is the standard privilege required to read VM status and configuration
-            if vm.get("status") == "running" and has_vm_permission(vmid, "VM.Audit"):
+            # 3. Check for VM.Monitor privilege
+            # This privilege is required to interact with the QEMU Guest Agent and fetch the IP
+            if vm.get("status") == "running" and has_vm_permission(vmid, "VM.Monitor"):
                 try:
                     proxmox_vm = ProxmoxVM(manager=self, vmid=vmid)
                     vm["ip"] = proxmox_vm.management_ip()
