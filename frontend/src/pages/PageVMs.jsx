@@ -4,7 +4,7 @@ import { PulseLoader } from "react-spinners";
 import ListVM from "./ListVM.jsx";
 import PropTypes from 'prop-types';
 
-import "../styles/style_auth.css"; // A renommer plus tard en style_vms.css si tu veux
+import "../styles/style_auth.css";
 
 export default function PageVMs({ user }) {
   const [allServersVMs, setAllServersVMs] = useState(null);
@@ -53,16 +53,16 @@ const loadAllVMs = useCallback(async () => {
     const fetchPromises = targetServers.map(async (srv) => {
       try {
         const res = await fetch(`${API_BASE}/server/${srv}/vm`, { credentials: "include" });
-        if (res.status === 401) {
-          console.warn("Session expired or unauthorized. Redirecting to login.");
+        if (res.status === 401 || res.status === 403) {
+          console.warn(`Access denied (${res.status}). Session may be deleted or expired. Redirecting.`);
       
           // 1. Clear the frontend state
           sessionStorage.removeItem("user_session");
       
           // 2. Force a full page redirect to the auth page
           // Using window.location guarantees the React state is wiped clean
-          globalThis.location.href = "/auth"; 
-          return; 
+          globalThis.location.href = `${BASE}auth`.replace(/\/+/g, '/');; 
+          return null; 
         }
         if (res.ok) {
           const data = await res.json();
@@ -107,8 +107,7 @@ const loadAllVMs = useCallback(async () => {
   // 1. Utilisateur non connecte
   if (!user) {
     
-    return <Navigate to="/auth" replace />;
-  }
+    return <Navigate to={`${BASE}/auth`} replace />;}
 
   // 2. Chargement des donnees en cours
   if (loading && !allServersVMs) {

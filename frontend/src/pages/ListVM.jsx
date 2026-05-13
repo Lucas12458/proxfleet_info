@@ -2,6 +2,7 @@ import "../styles/listvm.css";
 import { useState, useMemo, useEffect } from 'react';
 import { ClipLoader } from "react-spinners";
 import {CreateVmModal} from "./CloneVm";
+import {EditNetworkModal} from "./EditNetworkModal";
 import PropTypes from 'prop-types';
 
 
@@ -30,6 +31,9 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   const [selectedTemplateId, setSelectedTemplateId] = useState(500);
+
+  const [isNetModalOpen, setIsNetModalOpen] = useState(false);
+  const [selectedVmForNet, setSelectedVmForNet] = useState(null);
 
 
   // ─── Sélection multiple ────────────────────────────────────────────────────
@@ -134,6 +138,11 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
   
     // Open the modal
     setIsCreateModalOpen(true);
+    };
+
+    const handleEditNetworkClick = (vm) => {
+      setSelectedVmForNet(vm);
+      setIsNetModalOpen(true);
     };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -408,6 +417,16 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
           defaultPool={user?.username.split('@')[0]}
           defaultName={usernamePrefix}
         />
+        {isNetModalOpen && (
+        <EditNetworkModal 
+        isOpen={isNetModalOpen}
+        onClose={() => setIsNetModalOpen(false)}
+        server={selectedVmForNet?.server || server}
+        vmid={selectedVmForNet?.vmid}
+        currentInterfaces={selectedVmForNet?.interfaces || []}
+        onSuccess={onRefresh} // Ta fonction pour rafraîchir la liste
+        />
+)}
       </div>
 
       {/* ─── Barre d'actions groupées ──────────────────────────────────────── */}
@@ -541,33 +560,49 @@ export default function ListVM({ server, vms, allServersData, isMulti, onRefresh
                       )}
                       </td>
                   <td className="vm-actions">
- 
+                    {/* Actions pour les VMs classiques */}
                     {!vm.template && (
-                      ["start", "stop", "shutdown", "delete"].map((action) => {
-                      const srv = vm.server || server;
-                      const actionKey = `${srv}-${vm.vmid}-${action}`;
-                      const isLoading = actionLoading[actionKey];
-      
-                      return (
-                        <button key={action} className={`btn-${action}`} onClick={() => vmAction(vm.vmid, action, vm.server)} 
-                          disabled={isLoading || Object.keys(actionLoading).some(k => k.startsWith(`${srv}-${vm.vmid}`))}
-                          >
-                          {isLoading ? <ClipLoader color="#ffffff" size={15} /> : action.charAt(0).toUpperCase() + action.slice(1)}
-                        </button>
-                      );
-                      })
+                    <>
+                    {["start", "stop", "shutdown", "delete"].map((action) => {
+                    const srv = vm.server || server;
+                    const actionKey = `${srv}-${vm.vmid}-${action}`;
+                    const isLoading = actionLoading[actionKey];
+
+                    return (
+                      <button 
+                        key={action} 
+                        className={`btn-${action}`} 
+                        onClick={() => vmAction(vm.vmid, action, vm.server)} 
+                        disabled={isLoading || Object.keys(actionLoading).some(k => k.startsWith(`${srv}-${vm.vmid}`))}
+                        aria-label={`${action.charAt(0).toUpperCase() + action.slice(1)} VM ${vm.vmid}`}
+                      >
+                      {isLoading ? <ClipLoader color="#ffffff" size={15} /> : action.charAt(0).toUpperCase() + action.slice(1)}
+                      </button>
+                    );
+                    })}
+
+                    {/* NOUVEAU : Bouton pour modifier le réseau */}
+                    <button 
+                    className="btn-network"
+                    onClick={() => handleEditNetworkClick(vm)}
+                    title="Modifier les interfaces réseau"
+                    aria-label={`Modifier le réseau de la VM ${vm.vmid}`}
+                    disabled={Object.keys(actionLoading).some(k => k.startsWith(`${vm.server || server}-${vm.vmid}`))}
+                    >
+                    Réseau
+                    </button>
+                    </>
                     )}
 
-                  {/* Template specific actions */}
+                    {/* Actions spécifiques aux Templates */}
                     {vm.template && (
                       <button 
                       className="btn-clone" 
                       onClick={() => handleCloneTemplateClick(vm.vmid, vm.server)}
                       title={`Clone template ${vm.vmid}`}
-                      >
-                      Clone
-                      </button>
-              
+                    >
+                    Clone
+                    </button>
                     )}
                 </td>
             </tr>

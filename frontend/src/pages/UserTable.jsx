@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo,useCallback} from "react";
 import { useCsvData } from "../hooks/useCsvData";
 import {CloneModal} from "./BulkCloneVm";
 import { PermissionsModal } from "./PermissionsModal";
@@ -21,6 +21,14 @@ export default function UsersTable({ user }) {
   const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
 
+  const checkAuth = useCallback((res) => {
+    if (res.status === 401 || res.status === 403) {
+      sessionStorage.removeItem("user_session");
+      globalThis.location.href = `${BASE}/auth`.replace(/\/+/g, '/');
+      return false;
+    }
+    return true;
+  }, [BASE]);
 
   const handleUpload = (e) => {
     const file = e.target.files[0];
@@ -36,11 +44,8 @@ export default function UsersTable({ user }) {
       });
 
       // Handle session expiration
-      if (response.status === 401) {
-        sessionStorage.removeItem("user_session");
-        globalThis.location.href = "/auth";
-        return;
-      }
+      if (!checkAuth(response));
+        
 
       if (!response.ok) {
         throw new Error("Download failed due to a server error.");
@@ -77,11 +82,7 @@ export default function UsersTable({ user }) {
       });
 
       // Handle session expiration
-      if (response.status === 401) {
-        sessionStorage.removeItem("user_session");
-        globalThis.location.href = "/auth";
-        return;
-      }
+      if (!checkAuth(response));
 
       if (!response.ok) {
         throw new Error("Download failed due to a server error.");

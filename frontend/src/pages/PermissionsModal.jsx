@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PropTypes from 'prop-types';
 
 
@@ -10,6 +10,15 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
   const [selectedUser, setSelectedUser] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const checkAuth = useCallback((res) => {
+      if (res.status === 401 || res.status === 403) {
+        sessionStorage.removeItem("user_session");
+        globalThis.location.href = `${BASE}/auth`.replace(/\/+/g, '/');
+        return false;
+      }
+      return true;
+    }, [BASE]);
   
   const [permissions, setPermissions] = useState({
     can_modify_csv: false,
@@ -58,6 +67,7 @@ export function PermissionsModal({ isOpen, onClose, server, currentUser }) {
             const fetchPromises = targetServers.map(async (srv) => {
             try {
                 const res = await fetch(`${API_BASE}/server/${srv}/users/`, { credentials: "include" });
+                if (!checkAuth(res)) return null;
                 if (res.ok) {
                     return await res.json();
                 }

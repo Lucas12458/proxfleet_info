@@ -48,6 +48,7 @@ class CloneVMRequest(BaseModel):
 class NetworkUpdateSchema(BaseModel):
     bridge: str
     tag: Optional[int] = None
+    mac: Optional[str] = None
 
 
 
@@ -334,7 +335,7 @@ async def api_update_vm_network(
     """
     Update a specific network interface bridge or VLAN tag.
     """
-    success = proxmox_vm.update_network_interface(net_name, bridge=data.bridge, tag=data.tag)
+    success = proxmox_vm.update_network_interface(net_name, bridge=data.bridge, tag=data.tag,mac=data.mac)
     
     if not success:
         # Check if it was a 404 (interface missing) or a 500 (API error)

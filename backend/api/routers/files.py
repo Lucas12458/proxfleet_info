@@ -190,10 +190,9 @@ async def create_upload_vms(
         logging.error(f"Error while uploading CSV: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to upload CSV")
     
-@router.get("/csv/download/{filename}",responses={
-        status.HTTP_404_NOT_FOUND: {"description": MSG_CSV_NOT_FOUND}
-    })
-async def download_csv(filename: str):
+@router.get("/csv/download/{filename}",
+            responses={status.HTTP_404_NOT_FOUND: {"description": MSG_CSV_NOT_FOUND}})
+async def download_csv(filename: str,session: Annotated[dict,Depends(auth.get_current_session)]):
     safe_filename = os.path.basename(filename)
     file_path = UPLOAD_DIR / safe_filename
     
@@ -211,7 +210,7 @@ async def download_csv(filename: str):
             responses={
         status.HTTP_404_NOT_FOUND: {"description": MSG_CSV_NOT_FOUND}
     })
-async def download_export_csv(filename: str):
+async def download_export_csv(filename: str,session: Annotated[dict,Depends(auth.get_current_session)]):
     safe_filename = os.path.basename(filename)
     file_path = EXPORT_DIR / safe_filename
 

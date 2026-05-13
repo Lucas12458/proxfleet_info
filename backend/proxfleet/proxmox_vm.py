@@ -23,6 +23,8 @@ class ProxmoxVM:
         self.status_vm = str()
         self.storage_vm = str()
         self.ipv4_vm = str()
+        self.node = self.manager.proxmox.nodes.get()[0]["node"]
+
 
     def start(self):
         """
@@ -328,112 +330,85 @@ class ProxmoxVM:
                 interfaces[config_key] = iface_info
         return interfaces
 
-    def add_network_interface(self, net: str | None = None, model: str | None = None, bridge: str | None = None, firewall: bool | None = None):
+    def add_network_interface(self, net: str = None, model: str = "virtio", bridge: str = "vmbr0", tag: int = None, firewall: bool = True) -> bool:
         """
-        Add a new network interface to the virtual machine.
-        If net is not specified, it will automatically use the next available netX number.
-        If net is specified, it will check if it already exists to avoid duplicates.
-        If model, bridge, and firewall are not specified, the method will copy
-        the configuration (model, bridge, firewall) from the last existing interface.
-        net: Optional. Interface name (e.g. 'net0', 'net1').
-        model: Optional. Network card model (e.g. 'virtio', 'e1000').
-        bridge: Optional. Bridge to attach (e.g. 'vmbr140').
-        firewall: Optional. Enable firewall (True | False).
-        return: bool
+        Add a new network interface. Defaults to next available netX if net is None.
         """
-        node = self.manager.proxmox.nodes.get()[0]["node"]
-        logging.debug(f"Attempting to add network interface (net={net}, model={model}, bridge={bridge}, firewall={firewall}) for VM {self.vmid} on node {node}.")
+        logging.debug(f"Adding NIC to VM {self.vmid} on node {self.node}")
         try:
-            cfg = self.manager.proxmox.nodes(node).qemu(self.vmid).config.get()
-            if net is not None:
-                if net in cfg:
-                    logging.error(f"Network interface {net} already exists on VM {self.vmid}.")
-                    return False
-                target_net = net
-            else:
-                next_index = 0
-                while f"net{next_index}" in cfg:
-                    next_index += 1
-                target_net = f"net{next_index}"
+            config = self.manager.proxmox.nodes(self.node).qemu(self.vmid).config.get()
+            
+            # Find the target netX name
+            if net is None:
+                idx = 0
+                while f"net{idx}" in config:
+                    idx += 1
+                net = f"net{idx}"
+            elif net in config:
+                logging.error(f"Interface {net} already exists.")
+                return False
 
-            existing_nets = [k for k in cfg.keys() if k.startswith("net")]
-            if existing_nets:
-                existing_nets.sort()
-                last_net = existing_nets[-1]
-                last_net_config = cfg.get(last_net)
-                if last_net_config:
-                    parts = last_net_config.split(",")
-                    last_model = "virtio"
-                    last_bridge = None
-                    last_firewall = None
-                    for part in parts:
-                        if part.startswith("virtio=") or part.startswith("e1000="):
-                            last_model = part.split("=")[0]
-                        elif part.startswith("bridge="):
-                            last_bridge = part.split("=")[1]
-                        elif part.startswith("firewall="):
-                            last_firewall = (part.split("=")[1] == "1")
-                    if model is None:
-                        model = last_model
-                    if bridge is None:
-                        bridge = last_bridge
-                    if firewall is None:
-                        firewall = last_firewall
-
-            model = model or "virtio"
-            bridge = bridge or "vmbr0"
-            new_net = f"model={model},bridge={bridge}"
+            # Build Proxmox config string
+            net_config = f"model={model},bridge={bridge}"
+            if tag:
+                net_config += f",tag={tag}"
             if firewall:
-                new_net += ",firewall=1"
-            self.manager.proxmox.nodes(node).qemu(self.vmid).config.post(**{target_net: new_net})
-            logging.debug(f"Network interface {target_net} added successfully to VM {self.vmid}.")
-            return True
+                net_config += ",firewall=1"
 
+            self.manager.proxmox.nodes(self.node).qemu(self.vmid).config.post(**{net: net_config})
+            return True
         except Exception as e:
-            logging.error(f"Unable to add network interface to VM {self.vmid}: {e}")
+            logging.error(f"Failed to add NIC: {e}")
             return False
 
-    def set_network_bridge(self, net_name: str, new_bridge: str):
+    def update_network_interface(self, net_name: str, bridge: str = None, tag: int = None,mac: str = None) -> bool:
         """
-        Update the bridge for a specific network interface (e.g., "net0", "net1", ...).
-        Only the bridge is modified; all other parameters (model, MAC, firewall, etc.) remain unchanged.
-        Should be called while the VM is powered off.
-        net_name: Interface name (e.g., "net0", "net1")
-        new_bridge: New bridge name (e.g., "vmbr140")
-        return: bool
+        Update an existing interface. Preserves MAC and other settings.
         """
-        node = self.manager.proxmox.nodes.get()[0]["node"]
-        logging.debug(f"Attempting to update bridge for {net_name} → {new_bridge} on VM {self.vmid} (node: {node}).")
         try:
-            cfg = self.manager.proxmox.nodes(node).qemu(self.vmid).config.get()
-            current_net = cfg.get(net_name)
-            if not current_net:
-                logging.error(f"Network interface {net_name} not found for VM {self.vmid}.")
+            config = self.manager.proxmox.nodes(self.node).qemu(self.vmid).config.get()
+            current_conf = config.get(net_name)
+            if not current_conf:
                 return False
-            parts = current_net.split(",")
-            updated_parts = []
-            bridge_found = False
+
+            # We parse existing config to replace only what's needed
+            parts = current_conf.split(',')
+            new_parts = []
+            
+            # Flags to track if we updated or if we need to add the parameter
+            bridge_updated = False
+            tag_updated = False
 
             for p in parts:
-                if p.strip().startswith("bridge="):
-                    updated_parts.append(f"bridge={new_bridge}")
-                    bridge_found = True
+                if p.startswith("bridge=") and bridge:
+                    new_parts.append(f"bridge={bridge}")
+                    bridge_updated = True
+                elif p.startswith("tag=") and tag is not None:
+                    new_parts.append(f"tag={tag}")
+                    tag_updated = True
+                elif p.startswith("tag=") and tag is None:
+                    continue # We remove the tag if it's explicitly None
+                
+                elif mac and ("=" in p):
+                    param_name, param_value = p.split("=", 1)
+                    if param_name in ["virtio", "e1000", "vmxnet3", "rtl8139"]:
+                        new_parts.append(f"{param_name}={mac}")
+                    else:
+                        new_parts.append(p)
                 else:
-                    updated_parts.append(p)
+                    new_parts.append(p)
 
-            if not bridge_found:
-                logging.error(f"No bridge found in {net_name} configuration for VM {self.vmid}. Nothing was changed.")
-                return False
+            if bridge and not bridge_updated:
+                new_parts.append(f"bridge={bridge}")
+            if tag and not tag_updated:
+                new_parts.append(f"tag={tag}")
 
-            new_net_config = ",".join(updated_parts)
-            self.manager.proxmox.nodes(node).qemu(self.vmid).config.post(**{net_name: new_net_config})
-            logging.debug(f"Bridge for {net_name} successfully updated to '{new_bridge}' on VM {self.vmid}.")
+            self.manager.proxmox.nodes(self.node).qemu(self.vmid).config.post(**{net_name: ",".join(new_parts)})
             return True
-
         except Exception as e:
-            logging.error(f"Error while updating bridge for {net_name} on VM {self.vmid}: {e}")
+            logging.error(f"Update failed: {e}")
             return False
-
+        
     def clone_vm(self):
         """
         Clone a template VM.

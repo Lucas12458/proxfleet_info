@@ -143,7 +143,7 @@ def check_csv(input_csv: str, config_yaml: str,proxmox_user: str, tokens_dict: d
                     else:
                         try:
                             manager = ProxmoxManager(proxmox_host=proxmox_host, proxmox_user=proxmox_user, use_token=True, token_name=t_name, token_value=t_value)
-                            vm_helper = ProxmoxVM(proxmox_host=proxmox_host, proxmox_user=proxmox_user, vmid=0, use_token=True, token_name=t_name, token_value=t_value)
+                            vm_helper = ProxmoxVM(manager=manager)
                             connections[target_host] = {"manager": manager, "vm": vm_helper}
                         except Exception as e:
                             logging.error(f"Connection failed to {target_host}: {e}")
@@ -301,10 +301,15 @@ def clone_csv(input_csv: str, config_yaml: str, proxmox_user: str, tokens_dict: 
         vm_helper.template_vm = template_vmid
         vm_helper.pool_vm = row["pool"]
         
-        # Gestion du stockage (Logique client préservée)
+        # Gestion du stockage
         storage_csv = (row.get("storage") or "").strip()
         if storage_csv:
-            vm_helper.storage_vm = storage_csv
+            
+            if manager.check_storage_exists("data2") and storage_csv == "data":
+                vm_helper.storage_vm = "data2"
+            else:
+                vm_helper.storage_vm = storage_csv
+
         else:
             # On vérifie la disponibilité via le manager
             vm_helper.storage_vm = "data2" if manager.check_storage_exists("data2") else "data"
