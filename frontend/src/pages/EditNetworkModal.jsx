@@ -204,29 +204,29 @@ export function EditNetworkModal({ isOpen, onClose, server, vmid, currentInterfa
 
                           <div className="form-group-tag-mac" style={{ marginTop: '15px' }}>
                             <div className="input-pair">
-                            <label htmlFor={`tag-input-${Interface.id}`}>Tag VLAN (Optionnel) :</label>
-                            <input 
-                              id={`tag-input-${Interface.id}`}
-                              className="create-input" /* 4. Ajout de la classe d'input standard */
-                              type="number" 
-                              placeholder="Ex: 10"
-                              value={currentTag || ""}
-                              onChange={(e) => handleChange(Interface.id, 'tag', e.target.value)}
-                              style={{ width: '100%', maxWidth: '200px' }}
-                            />
+                              <label htmlFor={`tag-input-${Interface.id}`}>Tag VLAN (Optionnel) :</label>
+                              <input 
+                                id={`tag-input-${Interface.id}`}
+                                className="create-input" /* 4. Ajout de la classe d'input standard */
+                                type="number" 
+                                placeholder="Ex: 10"
+                                value={currentTag || ""}
+                                onChange={(e) => handleChange(Interface.id, 'tag', e.target.value)}
+                                style={{ width: '100%', maxWidth: '200px' }}
+                              />
                             </div>
 
                             <div className="input-pair">      
-                            <label htmlFor={`mac-input-${Interface.id}`}>Adresse MAC :</label>
-                            <input 
-                              id={`mac-input-${Interface.id}`}
-                              className="create-input"
-                              type="text" 
-                              placeholder="Ex: AA:BB:CC:DD:EE:FF"
-                              value={formData[Interface.id]?.mac || ""}
-                              onChange={(e) => handleChange(Interface.id, 'mac', e.target.value)}
-                              style={{ width: '100%', maxWidth: '200px' }}
-                            />
+                              <label htmlFor={`mac-input-${Interface.id}`}>Adresse MAC :</label>
+                              <input 
+                                id={`mac-input-${Interface.id}`}
+                                className="create-input"
+                                type="text" 
+                                placeholder="Ex: AA:BB:CC:DD:EE:FF"
+                                value={formData[Interface.id]?.mac || ""}
+                                onChange={(e) => handleChange(Interface.id, 'mac', e.target.value)}
+                                style={{ width: '100%', maxWidth: '200px' }}
+                              />
                             </div>
                           </div>
 

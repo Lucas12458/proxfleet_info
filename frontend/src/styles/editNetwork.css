@@ -232,19 +232,22 @@
 .form-group-tag-mac {
   display: flex;
   flex-direction: row;
-  gap: 30px; /* Définit un espace propre entre le bloc Tag et le bloc MAC */
+  gap: 30px;
   align-items: flex-start;
-  flex-wrap: wrap; /* Permet de passer à la ligne sur de très petits écrans */
+  flex-wrap: wrap;
 }
 
 .form-group-tag-mac .input-pair {
   display: flex;
-  flex-direction: column; /* Place le label au-dessus de l'input */
-  gap: 8px; /* Espace entre le label et l'input */
-  flex: 1; /* Permet aux colonnes de partager l'espace disponible */
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  
 }
 
-.form-group-tag-mac label {
-  font-weight: 500;
-  color: var(--text-color, #333);
+.form-group-tag-mac .input-pair label {
+  font-size: 0.85rem;        
+  font-weight: 600;          
+  color: var(--text-main);
+  letter-spacing: 0.3px;
 }
