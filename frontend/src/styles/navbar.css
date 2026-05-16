@@ -50,7 +50,7 @@
 /* Quand on est sur la page de connexion, on force le centrage absolu */
 .navbar.navbar-center-only {
   display: flex;
-  justify-content: center; /* Centre le contenu horizontalement */
+  justify-content: space-around;
 }
 
 .navbar-center-only .navbar-links,

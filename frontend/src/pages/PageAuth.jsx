@@ -1,40 +1,38 @@
+// PageAuth.jsx
+// Page de connexion (Login page).
+// Affiche un formulaire avec username, password et sélecteur de serveur.
+// On successful login, appelle onLogin() depuis App.jsx pour mettre à jour l'auth global.
+
 import { useState, useEffect } from "react";
 import { PulseLoader, SyncLoader } from "react-spinners";
-import { useNavigate } from "react-router-dom"; // Pour la redirection
+import { useNavigate } from "react-router-dom";
 import PropTypes from 'prop-types';
 
 import "../styles/style_auth.css";
 
-// On recupere la prop onLogin passee par App.jsx
+// Props:
+//   - onLogin : callback depuis App.jsx pour stocker les infos de l'utilisateur connecté
 export default function PageAuth({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [server, setServer] = useState(localStorage.getItem("server") || "pm-serv16");
+  const [server, setServer] = useState(localStorage.getItem("server") || "pm-serv16"); // Dernier serveur utilisé
   const [error, setError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [SERVERS, setSERVERS] = useState([]);
+  const [SERVERS, setSERVERS] = useState([]); // Liste des serveurs Proxmox disponibles
 
-  const navigate = useNavigate(); // Hook pour changer de page
+  const navigate = useNavigate();
   const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
   const API_BASE = `${BASE}api`;
 
-
- useEffect(() => {
-    // A l'ouverture de la page : on bloque le scroll
+  // Désactive le scroll de la page quand la modale est ouverte — restored on unmount
+  useEffect(() => {
     document.body.style.overflow = "hidden";
-
-    // Fonction de nettoyage (cleanup)
-    // React l'execute automatiquement quand le composant est detruit (ex: apres le login)
     return () => {
       document.body.style.overflow = "auto";
     };
   }, []);
 
-
-
-
-
-  // Charger les serveurs pour le menu deroulant
+  // Récupère la liste des serveurs Proxmox disponibles pour le menu déroulant
   useEffect(() => {
     async function fetchServers() {
       try {
@@ -42,17 +40,18 @@ export default function PageAuth({ onLogin }) {
         if (!res.ok) return;
         const data = await res.json();
         setSERVERS(data.map(s => s.host));
-      } catch(error) {console.error("Erreur d'authentification :", error);}
+      } catch(error) { console.error("Erreur d'authentification :", error); }
     }
     fetchServers();
   }, [API_BASE]);
 
-  // LOGIN
+  // Gère la soumission du formulaire de connexion
   async function handleSubmit(e) {
     e.preventDefault();
     setIsLoggingIn(true); 
     setError("");
 
+    // Si "all" est sélectionné, envoie les credentials à tous les serveurs
     const selected = server === "all" ? SERVERS : [server];
 
     try {
@@ -88,15 +87,16 @@ export default function PageAuth({ onLogin }) {
         return;
       }
 
+      // Sauvegarde le serveur sélectionné pour la prochaine fois
       localStorage.setItem("server", server);
-      // ON REMPLACE : localStorage.setItem("hasLoggedOnce", "true");
-      // PAR : Le stockage des infos réelles pour le refresh
+
+      // Extract user info returned by the backend (rôle, permissions, etc.)
       const userInfo = data.user_info || { nom: username, role: "etudiant" };
       
-      // 1. On met a jour l'etat global (ceci appelle handleLogin dans App.jsx)
+      // Met à jour l'auth global dans App.jsx
       onLogin(userInfo);
 
-      // 2. On redirige vers la page principale
+      // Redirect to the main page
       navigate("/");
 
     } catch {
@@ -106,7 +106,6 @@ export default function PageAuth({ onLogin }) {
     }
   }
 
-  // L'interface ne contient plus que le formulaire
   return (
     <div className="pageAuth">
       <form onSubmit={handleSubmit} autoComplete="on">
@@ -134,10 +133,9 @@ export default function PageAuth({ onLogin }) {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {/* Affichage conditionnel : Spinner ou Menu déroulant */}
+        {/* Affiche un spinner pendant le chargement des serveurs, puis le menu déroulant */}
         {SERVERS.length === 0 ? (
-          
-          // État de chargement
+          // État de chargement — servers not yet fetched
           <div className="loading-servers-box" style={{ 
             display: "flex", 
             alignItems: "center", 
@@ -155,8 +153,7 @@ export default function PageAuth({ onLogin }) {
           </div>
 
         ) : (
-          
-          // État chargé
+          // État chargé — show server selector
           <select
             value={server}
             onChange={(e) => {
@@ -169,13 +166,14 @@ export default function PageAuth({ onLogin }) {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          
         )}
 
+        {/* Bouton de connexion — shows a spinner while login is in progress */}
         <button type="submit" disabled={isLoggingIn} className="login-btn">
           {isLoggingIn ? (<PulseLoader color="#ffffff" loading={isLoggingIn} size={10} aria-label="Loading Spinner" />) : ("Se connecter")}
         </button>
 
+        {/* Affiche le message d'erreur si le login échoue */}
         {error && <p className="error">{error}</p>}
       </form>
     </div>
@@ -184,4 +182,4 @@ export default function PageAuth({ onLogin }) {
 
 PageAuth.propTypes = {
   onLogin: PropTypes.func
-}
+};

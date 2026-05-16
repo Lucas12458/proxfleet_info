@@ -1,12 +1,25 @@
+// CloneVm.jsx
+// Modale pour cloner un template de VM (single VM clone modal).
+// Permet de configurer une nouvelle VM : nom, ID, template, pool, stockage, serveur cible.
+// Automatically fetches compatible storages when a server is selected.
+
 import { useState, useEffect } from "react";
 import PropTypes from 'prop-types';
-
 import "../styles/cloneVm.css";
 
-// Ensure API_BASE is defined for the fetch requests
 const BASE = import.meta.env.VITE_BASE_PATH || '/app2/';
 const API_BASE = `${BASE}api`;
 
+// Props:
+//   - isOpen : si la modale est visible
+//   - onClose : callback pour fermer
+//   - onSubmit : callback avec (payload, targetServer) à la confirmation
+//   - isMulti : si plusieurs serveurs sont disponibles (shows server selector)
+//   - availableServers : liste des hostnames de serveurs
+//   - defaultServer : serveur pré-sélectionné
+//   - defaultTemplate : ID de template pré-rempli
+//   - defaultPool : nom de pool pré-rempli
+//   - defaultName : préfixe du nom de VM pré-rempli
 export function CreateVmModal({ 
   isOpen, 
   onClose, 
@@ -19,22 +32,23 @@ export function CreateVmModal({
   defaultName
 }) {
   const [targetServer, setTargetServer] = useState(defaultServer || "");
-  const [availableStorages, setAvailableStorages] = useState([]);
+  const [availableStorages, setAvailableStorages] = useState([]); // Stockages compatibles avec les images VM
   const [loadingStorage, setLoadingStorage] = useState(false);
 
+  // État du formulaire
   const [params, setParams] = useState({
     name: defaultName || "",
-    newid: "",
+    newid: "",             // Optionnel — leave empty for auto-assignment
     template: defaultTemplate || 500,
     pool: defaultPool || "",
     storage: ""
   });
 
-  // 1. Reset form when modal opens
+  // Réinitialise le formulaire à chaque ouverture de la modale
   useEffect(() => {
     if (isOpen) {
       setParams({
-       name: defaultName || "",
+        name: defaultName || "",
         newid: "",
         template: defaultTemplate || 500,
         pool: defaultPool || "",
@@ -44,7 +58,7 @@ export function CreateVmModal({
     }
   }, [isOpen, defaultServer, defaultTemplate, defaultPool, defaultName]);
 
-  // 2. Fetch and filter storage whenever the target server changes
+  // Récupère les stockages compatibles whenever the target server changes
   useEffect(() => {
     if (!isOpen || !targetServer) return;
 
@@ -59,12 +73,12 @@ export function CreateVmModal({
         if (response.ok) {
           const data = await response.json();
           
-          // Filter out storages that do not support VM disk images
+          // Garde uniquement les stockages activés qui supportent les images VM
           const validStorages = data.filter(s => !s.disable && s.content?.includes("images"));
           setAvailableStorages(validStorages);
 
-          // Automatically select the first valid storage if current selection is empty or invalid
           if (validStorages.length > 0) {
+            // Ordre de priorité des stockages préférés
             const priorityList = ["data2", "data"];
             
             const preferredStorage = priorityList.find(name => 
@@ -72,18 +86,12 @@ export function CreateVmModal({
             );
 
             setParams(prev => {
-              // 1. Vérifier si le stockage actuellement sélectionné est toujours valide
+              // Garde la sélection courante si encore valide — otherwise pick preferred or first
               const isCurrentValid = validStorages.some(s => s.storage === prev.storage);
-              
-              // 2. Définir le prochain stockage dans l'ordre : 
-              // Préféré > Actuel (si valide) > Le premier de la liste
               const nextStorage = preferredStorage || (isCurrentValid ? prev.storage : validStorages[0].storage);
 
-              return {
-                ...prev,
-                storage: nextStorage
-              };
-              });
+              return { ...prev, storage: nextStorage };
+            });
           } else {
             setParams(prev => ({ ...prev, storage: "" }));
           }
@@ -100,11 +108,13 @@ export function CreateVmModal({
 
   if (!isOpen) return null;
 
+  // Met à jour un champ du formulaire
   const handleChange = (e) => {
     const { name, value } = e.target;
     setParams(prev => ({ ...prev, [name]: value }));
   };
 
+  // Valide et soumet le formulaire
   const handleSubmit = () => {
     if (!params.name.trim()) {
       alert("Please enter a VM name.");
@@ -124,7 +134,7 @@ export function CreateVmModal({
       template: Number(params.template),
       pool: params.pool,
       storage: params.storage,
-      newid: params.newid ? Number(params.newid) : null
+      newid: params.newid ? Number(params.newid) : null // null = auto-assign ID
     };
 
     onSubmit(payload, targetServer);
@@ -137,6 +147,7 @@ export function CreateVmModal({
         
         <div className="modal-body">
           
+          {/* Sélecteur de serveur — only shown in multi-server mode */}
           {isMulti && (
             <div className="form-group">
               <label htmlFor="target-server-select">Choix du serveur</label>
@@ -170,6 +181,7 @@ export function CreateVmModal({
             <input id="pool-input" type="text" name="pool" value={params.pool} onChange={handleChange} className="create-input" />
           </div>
 
+          {/* Sélecteur de stockage — populated dynamically from the selected server */}
           <div className="form-group">
             <label htmlFor="storage-select">Stockage</label>
             <select 
@@ -184,9 +196,7 @@ export function CreateVmModal({
                 <option value="">Loading storages...</option>
               ) : availableStorages.length > 0 ? (
                 availableStorages.map(s => (
-                  <option key={s.storage} value={s.storage}>
-                    {s.storage}
-                  </option>
+                  <option key={s.storage} value={s.storage}>{s.storage}</option>
                 ))
               ) : (
                 <option value="">No compatible storage found</option>
@@ -211,7 +221,6 @@ export function CreateVmModal({
   );
 }
 
-
 CreateVmModal.propTypes = {
   isOpen: PropTypes.bool,
   onClose: PropTypes.func, 
@@ -222,7 +231,4 @@ CreateVmModal.propTypes = {
   defaultTemplate: PropTypes.number,
   defaultPool: PropTypes.string,
   defaultName: PropTypes.string,
-
-
-
-}
+};
