@@ -237,17 +237,17 @@
 
 .create-input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 10px; 
+  min-height: 40px;   
+  font-size: 1rem;    
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background-color: var(--bg-surface); 
   color: var(--text-main);
-  font-size: 0.95rem;
   font-family: inherit;
   box-sizing: border-box;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-
 .create-input:focus {
   outline: none;
   border-color: var(--primary-color);

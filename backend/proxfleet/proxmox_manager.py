@@ -56,31 +56,10 @@ class ProxmoxManager:
         # 1. Fetch all VMs visible to the user on the node
         vms = self.proxmox.nodes(node).qemu.get()
 
-        # 2. Fetch global permissions for the connected user
-        # This call returns a dictionary of paths (e.g., /vms/100) and associated privileges
-        try:
-            user_perms = self.proxmox.access.permissions.get()
-        except Exception:
-            user_perms = {}
-
-        def has_vm_permission(vmid, privilege):
-            """
-            Checks if the user has a specific privilege on a VM.
-            Handles inheritance (rights on '/' apply to all resources).
-            """
-            path = f"/vms/{vmid}"
-            # Check privileges at the specific VM path AND the root path (for admins)
-            vm_privs = user_perms.get(path, {})
-            root_privs = user_perms.get("/", {})
-
-            return vm_privs.get(privilege) == 1 or root_privs.get(privilege) == 1
-
         def process_vm(vm):
             vmid = vm.get("vmid")
 
-            # 3. Check for VM.Monitor privilege
-            # This privilege is required to interact with the QEMU Guest Agent and fetch the IP
-            if vm.get("status") == "running" and has_vm_permission(vmid, "VM.Monitor"):
+            if vm.get("status") == "running":
                 try:
                     proxmox_vm = ProxmoxVM(manager=self, vmid=vmid)
                     vm["ip"] = proxmox_vm.management_ip()
