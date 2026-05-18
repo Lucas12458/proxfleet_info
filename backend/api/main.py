@@ -1,17 +1,17 @@
-from fastapi import FastAPI,Request,BackgroundTasks
+from fastapi import FastAPI,Request
+from fastapi.responses import HTMLResponse
 from api.routers import manager,vms,users,files,auth
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from proxfleet.proxmox_manager import ProxmoxManager
-from contextlib import asynccontextmanager
 from api.exceptions.exceptions import (ProxmoxResourceNotFoundError, 
                                        ProxmoxConnectionError,
                                        ProxmoxUnauthorizedError,
                                        ProxmoxInvalidTokenError,
                                        ProxmoxAPIError,
                                        ProxmoxTaskTimeoutError,
-                                       ProxfleetError)
-from pathlib import Path
+                                       ProxfleetError,
+                                       AdminConfigurationError
+                                       )
 import os
 import logging
 
@@ -51,6 +51,51 @@ app.include_router(vms.router)
 app.include_router(users.router)
 app.include_router(files.router)
 app.include_router(auth.router)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def api_root():
+    """
+    Renders a simple HTML landing page for the API.
+    Provides links to the frontend and the API documentation.
+    """
+    api_title = "ProxFleet API"
+    api_version = "1.0.0"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{api_title}</title>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f3f4f6; margin: 0; }}
+            .container {{ text-align: center; background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }}
+            h1 {{ color: #1a2744; }}
+            p {{ color: #6b7280; margin-bottom: 2rem; }}
+            .btn {{ display: inline-block; padding: 10px 20px; margin: 5px; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.2s; }}
+            .btn-primary {{ background-color: #2d6cdf; color: white; }}
+            .btn-primary:hover {{ background-color: #1e4bb8; }}
+            .btn-secondary {{ background-color: #e5e7eb; color: #1a2744; }}
+            .btn-secondary:hover {{ background-color: #d1d5db; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Welcome to {api_title}</h1>
+            <p>Version {api_version} - Proxmox servers manager</p>
+            <div>
+                <a href="/docs" class="btn btn-secondary">API Documentation</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+
+
 
 
 @app.exception_handler(ProxmoxResourceNotFoundError)
@@ -102,4 +147,14 @@ async def base_proxfleet_handler(request: Request, exc: ProxfleetError):
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc)}
+    )
+
+@app.exception_handler(AdminConfigurationError)
+async def admin_config_handler(request: Request, exc: AdminConfigurationError):
+    """
+    Handles AdminConfigurationError and returns the appropriate HTTP status code.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.message}
     )

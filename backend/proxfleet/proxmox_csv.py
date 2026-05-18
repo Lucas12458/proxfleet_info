@@ -42,7 +42,7 @@ class ProxmoxCSV:
             raise FileExistsError("File already exists")
 
         try:
-            with open(self.csv_path, "w", newline="", encoding="utf-8-sig") as f:
+            with open(self.csv_path, "w", newline="", encoding="utf-8-sig"):
                 pass  # Create empty file
             logging.debug(f"CSV file successfully created: {self.csv_path}")
             return True

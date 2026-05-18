@@ -52,3 +52,23 @@ class ProxmoxInvalidTokenError(ProxfleetError):
         self.message = f"Invalid or incomplete token data for host '{host}' (ID: {token_id})."
         super().__init__(self.message)
 
+class AdminConfigurationError(ProxfleetError):
+    """Raised when the admins configuration file cannot be updated."""
+    def __init__(self, userid: str, details: str, status_code: int = 500):
+        self.userid = userid
+        self.details = details
+        self.status_code = status_code
+        self.message = f"Cannot update admin status for user '{userid}': {details}"
+        super().__init__(self.message)
+
+class PermissionsError(Exception):
+    """Base class for all permission-related errors."""
+    pass
+
+class PermissionsReadError(PermissionsError):
+    """Raised when the configuration file cannot be read."""
+    pass
+
+class PermissionsWriteError(PermissionsError):
+    """Raised when the configuration file cannot be modified."""
+    pass

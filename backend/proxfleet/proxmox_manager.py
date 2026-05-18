@@ -49,30 +49,17 @@ class ProxmoxManager:
     
     def list_vms(self):
         """
-        List all VMs on the Proxmox server and fetch IPs only for owned VMs.
+        Lists all VMs and retrieves IPs if the user has sufficient permissions.
         """
         node = self.get_node_name()
-        
+
         # 1. Fetch all VMs visible to the user on the node
         vms = self.proxmox.nodes(node).qemu.get()
 
-        # 2. Retrieve the IDs of the VMs that the user actually has rights to (via the pool)
-        owned_vmids = set()
-        try:
-            pool_data = self.proxmox.pools(self.user).get()
-            owned_vmids = {
-                member["vmid"] for member in pool_data.get("members", []) 
-                if member.get("type") == "qemu"
-            }
-        except Exception:
-            # If the user does not have read access to the pool, the set remains empty
-            pass
-
         def process_vm(vm):
             vmid = vm.get("vmid")
-            
-            # 3. Double condition: VM is running AND present in the authorized pool
-            if vm.get("status") == "running" and vmid in owned_vmids:
+
+            if vm.get("status") == "running":
                 try:
                     proxmox_vm = ProxmoxVM(manager=self, vmid=vmid)
                     vm["ip"] = proxmox_vm.management_ip()
@@ -81,6 +68,7 @@ class ProxmoxManager:
             else:
                 vm["ip"] = None
 
+        # Use multithreading to accelerate IP retrieval via the Proxmox agent
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             list(executor.map(process_vm, vms))
 
@@ -547,3 +535,8 @@ class ProxmoxManager:
             return False
         except:
             return True 
+        
+    def get_storage(self):
+        """
+        """
+        return self.proxmox.storage.get()

@@ -4,60 +4,82 @@
   }
   
   .pageAuth {
-    background: #e5e7eb;
-    color: #e5e7eb;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  background: var(--bg-app); 
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.3s ease;
   }
   
   .pageAuth form {
-    background: #0f452a;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 320px;
-    box-shadow: 0 0 20px rgba(0,0,0,.5);
+  background: var(--bg-surface); 
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  width: 350px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  border: 1px solid var(--border-color);
   }
   
   .pageAuth h2 {
-    text-align: center;
-    margin-bottom: 1rem;
-  }
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--text-main);
+  font-weight: 700;
+}
   
-  .pageAuth input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 1rem;
-    border: none;
-    border-radius: 4px;
+  .pageAuth input, 
+  .pageAuth select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 1rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-main);
+  outline: none;
+  transition: all 0.2s;
+}
+
+  .pageAuth input::placeholder {
+    color: var(--text-muted);
   }
-  
+
+  .pageAuth input:focus, 
+  .pageAuth select:focus {
+  border-color: var(--table-header);
+  box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.15);
+  }
+
   .pageAuth button {
-    width: 100%;
-    padding: 10px;
-    background: #234591;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  width: 100%;
+  padding: 12px;
+  background: #2d6cdf; 
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
   }
   
   .pageAuth button:hover {
-    background: #1d4ed8;
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+  .pageAuth button:active {
+    transform: translateY(0);
   }
   
-  .pageAuth .error {
-    color: #f87171;
-    text-align: center;
-  }
+  
   .pageAuth select {
     width: 100%;
     padding: 10px;
     margin-bottom: 1rem;
     border: none;
     border-radius: 4px;
-    background: #7d8289; /* même style que input */
+    background: #4b5563;
     color: white;
     cursor: pointer;
   }
@@ -66,19 +88,29 @@
     outline: 2px solid #2563eb;
   }
   
-  .pageAuth option {
-    background: #1e293b;
-    color: white;
+ .pageAuth option {
+  background: var(--bg-surface);
+  color: var(--text-main);
   }
   
-  .spinner-overlay {
+.pageAuth .error {
+  color: var(--error-color);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.spinner-overlay {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 300px; /* Ou la hauteur de ta zone de contenu */
+  min-height: 300px;
   width: 100%;
   gap: 20px;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
 }

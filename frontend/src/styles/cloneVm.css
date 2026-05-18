@@ -1,0 +1,313 @@
+/* --- Variables --- */
+:root {
+  --primary-color: #3b82f6; 
+  --primary-hover: #2563eb;
+  --success-color: #10b981; 
+  --error-color: #ef4444;   
+  --text-main: #1f2937;     
+  --text-muted: #6b7280;    
+  --bg-surface: #ffffff;
+  --bg-body: #f3f4f6;
+  --border-color: #e5e7eb;
+  --border-radius: 12px;
+}
+
+/* --- Overlay de la Modale --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5); /* Fond semi-transparent */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+/* --- Conteneur Principal --- */
+.clone-container {
+  background-color: var(--bg-surface); /* S'adaptera au mode sombre */
+  border-radius: var(--border-radius);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-main); /* Texte clair en mode sombre */
+  animation: modal-fade-in 0.3s ease-out;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.clone-title {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+
+
+/* --- Upload --- */
+.upload-section {
+  border: 2px dashed var(--primary-color);
+  border-radius: var(--border-radius);
+ 
+  padding: 2rem 1.5rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  background-color: var(--bg-app);
+  transition: border-color 0.2s ease;
+}
+
+
+.clone-input {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* --- Boutons --- */
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clone-btn {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  background: #2d6cdf;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.2s;
+  box-sizing: border-box;
+}
+
+.clone-btn:hover {
+  background: #1a55c8;
+}
+
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface); /* Fond sombre en dark mode */
+  color: var(--text-main); /* Texte blanc en dark mode */
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-body); /* Un gris très foncé en dark mode */
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Barre de Progression --- */
+.progress-section {
+  margin-bottom: 1.5rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.progress-track {
+  background-color: var(--border-color); /* Un gris foncé en dark mode */
+  border-radius: 999px;
+  height: 10px;
+  width: 100%;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.progress-fill.running {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+  animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
+}
+
+
+/* --- Badges --- */
+.status-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-running { 
+  background-color: var(--status-running-bg); 
+  color: var(--status-running-text); 
+}
+
+.status-success { 
+  background-color: var(--status-success-bg); 
+  color: var(--status-success-text); 
+}
+
+.status-error { 
+  background-color: var(--status-error-bg); 
+  color: var(--status-error-text); 
+}
+
+.progress-fill.success { background-color: var(--success-color); }
+.progress-fill.error   { background-color: var(--error-color); }
+
+
+/*Clonage seul */
+
+/* --- Formulaire et Inputs --- */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.create-input {
+  width: 100%;
+  padding: 12px 10px; 
+  min-height: 40px;   
+  font-size: 1rem;    
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-surface); 
+  color: var(--text-main);
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.create-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* Effet de focus moderne */
+}
+
+.create-input:disabled {
+  background-color: var(--bg-body);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+select.create-input {
+  cursor: pointer;
+  appearance: auto; /* Garde le style natif du menu déroulant */
+}
+
+/* --- Footer et Boutons de la Modale --- */
+.modal-footer {
+  margin-top: 25px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color); /* Ligne de séparation subtile */
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: var(--bg-body);
+}
+
+.confirm-btn {
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  border: none;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

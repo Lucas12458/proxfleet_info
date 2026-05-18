@@ -2,23 +2,14 @@ import asyncio
 import logging
 import time
 import yaml
+from api.state import clone_jobs
 from proxfleet.proxmox_manager import ProxmoxManager
 from proxfleet.proxmox_vm import ProxmoxVM
 from proxfleet.proxmox_csv import ProxmoxCSV
 
 
-def load_csv_and_connections(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
-    """
-    Load CSV file, YAML configuration, and establish Proxmox connections.
-    csv_path: file path (csv file)
-    config_yaml: file path (proxmox server hostname)
-    proxmox_user: user@pam // admin: 'root@pam'
-    proxmox_password: password (optional if use_token=True)
-    use_token: if True, use token authentication
-    token_name: API token name (required if use_token=True)
-    token_value: API token value (required if use_token=True)
-    return: tuple (csv_handler, delimiter, rows, connections) or (None, None, None, None) if critical error
-    """
+
+def load_csv_and_connections(csv_path: str, config_yaml: str, proxmox_user: str, tokens_dict: dict = None):
     # 1. Load CSV data
     logging.debug(f"[LOAD] Loading CSV file: {csv_path}")
     csv_handler = ProxmoxCSV(csv_path)
@@ -34,37 +25,49 @@ def load_csv_and_connections(csv_path: str, config_yaml: str, proxmox_user: str,
         with open(config_yaml, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
             servers = config.get("servers", [])
-        logging.debug(f"Configuration loaded: {len(servers)} servers found.")
     except Exception as e:
         logging.error(f"Unable to load YAML config '{config_yaml}': {e}")
         return None, None, None, None
 
     # 3. Prepare Proxmox connections
     logging.debug("[LOAD] Preparing Proxmox connections.")
-    connections = {"user": proxmox_user, "password": proxmox_password, "use_token": use_token, "token_name": token_name, "token_value": token_value}
-    unique_hosts = set(row["target_host"] for row in rows if row.get("target_host"))
+    connections = {"user": proxmox_user}
+    unique_hosts = {row["target_host"] for row in rows if row.get("target_host")}
 
     for target_host in unique_hosts:
-        server_entry = next((s for s in servers if s["host"] == target_host), None)
+        server_entry = next((s for s in servers if s.get("host") == target_host), None)
         if not server_entry:
-            logging.error(f"Server '{target_host}' not found in config.")
+            logging.error(f"Server '{target_host}' not found in configuration.")
             continue
+            
         proxmox_host = server_entry.get("usmb-tri")
-        if not proxmox_host:
-            logging.error(f"No 'usmb-tri' entry for server '{target_host}'.")
+        
+        token_info = tokens_dict.get(target_host, {}) if tokens_dict else {}
+        
+        t_name = token_info.get("tokenid")
+        t_value = token_info.get("value")
+        
+
+        if not t_name or not t_value:
+            logging.error(f"No token found for host {target_host} in session.")
             continue
 
         try:
-            manager = ProxmoxManager(proxmox_host=proxmox_host, proxmox_user=proxmox_user, proxmox_password=proxmox_password, use_token=use_token, token_name=token_name, token_value=token_value)
+            logging.debug(f"Connecting to {target_host} ({proxmox_host}) with token {t_name}")
+            manager = ProxmoxManager(
+                proxmox_host=proxmox_host, 
+                proxmox_user=proxmox_user, 
+                use_token=True, 
+                token_name=t_name, 
+                token_value=t_value
+            )
             connections[target_host] = {"manager": manager, "proxmox_host": proxmox_host}
-            logging.debug(f"Connected to {target_host} ({proxmox_host})")
         except Exception as e:
             logging.error(f"Failed to connect to {target_host}: {e}")
 
-    logging.debug(f"[LOAD] Connections ready: {len(connections) - 2} hosts connected.")
     return csv_handler, delimiter, rows, connections
 
-def check_csv(input_csv: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def check_csv(input_csv: str, config_yaml: str,proxmox_user: str, tokens_dict: dict = None):
     """
     Validate the content of a CSV file (before cloning VMs).
     input_csv: file path (csv file)
@@ -119,42 +122,38 @@ def check_csv(input_csv: str, config_yaml: str, proxmox_user: str, proxmox_passw
         logging.debug(f"Validating CSV line {i}: {row}")
         line_errors = []
         target_host = (row.get("target_host") or "").strip()
-        student_name = (row.get("student_name") or "").strip()
-        student_firstname = (row.get("student_firstname") or "").strip()
-        student_login = (row.get("student_login") or "").strip()
+       
 
-        if not ((student_name and student_firstname) or student_login):
-            line_errors.append("student_identity")
         if not target_host:
-            line_errors.append("target_host")
+            line_errors.append("target_host_missing")
+        else:
+            if target_host not in connections:
+                server_entry = next((s for s in servers if s.get("host") == target_host), None)
+                if not server_entry:
+                    line_errors.append("target_host_not_in_config")
+                else:
+                    proxmox_host = server_entry.get("usmb-tri")
+                    
+                    token_info = tokens_dict.get(target_host, {}) if tokens_dict else {}
+                    t_name = token_info.get("token_name")
+                    t_value = token_info.get("token_value")
+
+                    if not t_name or not t_value:
+                        line_errors.append("missing_token")
+                    else:
+                        try:
+                            manager = ProxmoxManager(proxmox_host=proxmox_host, proxmox_user=proxmox_user, use_token=True, token_name=t_name, token_value=t_value)
+                            vm_helper = ProxmoxVM(manager=manager)
+                            connections[target_host] = {"manager": manager, "vm": vm_helper}
+                        except Exception as e:
+                            logging.error(f"Connection failed to {target_host}: {e}")
+                            line_errors.append("connection_failed")
+
+        if line_errors:
             errors.append({"line": i, "errors": line_errors})
             continue
 
-        try:
-            server_entry = next((s for s in servers if s.get("host") == target_host), None)
-            if not server_entry:
-                line_errors.append("target_host")
-                errors.append({"line": i, "errors": line_errors})
-                continue
-            proxmox_host = server_entry.get("usmb-tri")
-        except Exception as e:
-            logging.error(f"Error retrieving host info for '{target_host}': {e}")
-            line_errors.append("target_host")
-            errors.append({"line": i, "errors": line_errors})
-            continue
-
-        if target_host not in connections:
-            try:
-                logging.debug(f"Connecting to {proxmox_host} as {proxmox_user}")
-                manager = ProxmoxManager(proxmox_host=proxmox_host, proxmox_user=proxmox_user, proxmox_password=proxmox_password, use_token=use_token, token_name=token_name, token_value=token_value)
-                vm_helper = ProxmoxVM(proxmox_host=proxmox_host, proxmox_user=proxmox_user, proxmox_password=proxmox_password, vmid=0, use_token=use_token, token_name=token_name, token_value=token_value)
-                connections[target_host] = {"manager": manager, "vm": vm_helper}
-                logging.debug(f"Connection established for host {target_host}")
-            except Exception as e:
-                logging.error(f"Unable to connect to {proxmox_host}: {e}")
-                line_errors.append("connection_failed")
-                errors.append({"line": i, "errors": line_errors})
-                continue
+        
 
         manager = connections[target_host]["manager"]
         vm_helper = connections[target_host]["vm"]
@@ -207,35 +206,39 @@ def check_csv(input_csv: str, config_yaml: str, proxmox_user: str, proxmox_passw
         logging.debug("CSV validation successful. All entries are valid.")
         return True, []
 
-def clone_csv(input_csv: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def clone_csv(input_csv: str, config_yaml: str, proxmox_user: str, tokens_dict: dict = None, job_id: str = None):
     """
-    Clone all VMs defined in the CSV file that have an empty status.
-    Updates the 'status' column with 'cloned' or 'error'.
-    input_csv: file path (csv file)
-    config_yaml: file path (proxmox server hostname)
-    proxmox_user: user@pam // admin: 'root@pam'
-    proxmox_password: password (optional if use_token=True)
-    use_token: if True, use token authentication
-    token_name: API token name (required if use_token=True)
-    token_value: API token value (required if use_token=True)
-    return: list[bool] - True if clone succeeded, False otherwise (one per CSV row)
-    """  
+    Clone VMs defined in CSV. 
+    Version adaptée pour utiliser le ProxmoxManager et le suivi de progression.
+    """
     logging.debug(f"Starting VM cloning for file: {input_csv}")
 
     # 1. Load CSV, config and connections
-    csv_handler, delimiter, rows, connections = load_csv_and_connections(input_csv, config_yaml, proxmox_user, proxmox_password, use_token, token_name, token_value)
+    # On s'assure de bien transmettre le tokens_dict pour le multi-serveur
+    csv_handler, delimiter, rows, connections = load_csv_and_connections(
+        input_csv, config_yaml, proxmox_user, tokens_dict=tokens_dict
+    )
+    
     if rows is None:
         return []
+
+    # INITIALISATION DU SUIVI (Pour React)
+    if job_id and job_id in clone_jobs:
+        # On compte uniquement les lignes qui n'ont pas encore de statut
+        clone_jobs[job_id]["total"] = len([r for r in rows if not r.get("status")])
+        clone_jobs[job_id]["current"] = 0
+
     results_map = {}
+    clone_tasks = []
 
     # 2. Launch all clones
     logging.debug("[CLONE] Launching clone operations.")
-    clone_tasks = []
+    
     for i, row in enumerate(rows):
         if row.get("status"):
-            logging.debug(f"[{i+1}/{len(rows)}] Skipping '{row.get('vm_name', 'unknown')}' - already processed (status: {row['status']})")
             results_map[i] = False
             continue
+
         target_host = row["target_host"]
         if target_host not in connections:
             logging.error(f"[{i+1}/{len(rows)}] No connection for host '{target_host}'")
@@ -243,149 +246,129 @@ def clone_csv(input_csv: str, config_yaml: str, proxmox_user: str, proxmox_passw
             rows[i]["status"] = "error"
             continue
 
+        # --- MODIFICATION ICI : On utilise le manager déjà prêt dans connections ---
         manager = connections[target_host]["manager"]
-        proxmox_host = connections[target_host]["proxmox_host"]
+        
+        # On utilise ta nouvelle signature ProxmoxVM(manager=manager)
+        vm_temp = ProxmoxVM(manager=manager)
+
+        # Logique de nommage (Inchangée)
         vm_name = row.get("vm_name")
         if not vm_name:
             student_login = row.get("student_login")
             if student_login:
                 vm_name = student_login
             else:
-                student_name = row.get("student_name", "")
-                student_firstname = row.get("student_firstname", "")
-                if student_name and student_firstname:
-                    vm_name = f"{student_name}{student_firstname[0]}"
+                student_name, student_fname = row.get("student_name", ""), row.get("student_firstname", "")
+                if student_name and student_fname:
+                    vm_name = f"{student_name}{student_fname[0]}"
                 else:
-                    logging.error(f"[{i+1}/{len(rows)}] Unable to determine VM name for row {i+1}")
                     results_map[i] = False
                     rows[i]["status"] = "error"
                     continue
-        logging.debug(f"[{i+1}/{len(rows)}] VM name determined: {vm_name}")
 
-        vm_temp = ProxmoxVM(proxmox_host=proxmox_host, proxmox_user=connections["user"], proxmox_password=connections.get("password"), vmid=0, use_token=connections.get("use_token", False), token_name=connections.get("token_name"), token_value=connections.get("token_value"))
+        # Recherche du template (Utilise le nouveau vm_temp)
         template_name = row["template_name"]
         template_found, template_vmid = vm_temp.search_name(template_name, template=True)
 
         if not template_found:
-            logging.error(f"[{i+1}/{len(rows)}] Template '{template_name}' not found on {target_host}")
             results_map[i] = False
             rows[i]["status"] = "error"
             continue
-        logging.debug(f"[{i+1}/{len(rows)}] Template '{template_name}' found with VMID {template_vmid}")
 
+        # Gestion du nouvel ID (Utilise le manager)
         newid_str = row.get("newid", "").strip()
         if newid_str:
             try:
                 newid = int(newid_str)
-                logging.debug(f"[{i+1}/{len(rows)}] Using newid from CSV: {newid}")
+                # On vérifie si l'ID est libre avec ta nouvelle méthode
+                if manager.is_vmid_used(newid):
+                    logging.warning(f"ID {newid} used, getting next available.")
+                    newid = manager.get_next_vmid()
             except ValueError:
-                logging.warning(f"[{i+1}/{len(rows)}] Invalid newid '{newid_str}', using next available VMID")
                 newid = manager.get_next_vmid()
         else:
             newid = manager.get_next_vmid()
-            logging.debug(f"[{i+1}/{len(rows)}] Using next available VMID: {newid}")
 
         if newid is None:
-            logging.error(f"[{i+1}/{len(rows)}] Unable to get next VMID")
             results_map[i] = False
             rows[i]["status"] = "error"
             continue
 
-        test_newid, existing_vm_name = vm_temp.search_vmid(newid, template=False)
-        if test_newid:
-            logging.error(f"[{i+1}/{len(rows)}] VMID {newid} is already used by VM '{existing_vm_name}'")
-            results_map[i] = False
-            rows[i]["status"] = "error"
-            continue
-
-        vm_helper = ProxmoxVM(proxmox_host=proxmox_host, proxmox_user=connections["user"], proxmox_password=connections.get("password"), vmid=template_vmid, use_token=connections.get("use_token", False), token_name=connections.get("token_name"), token_value=connections.get("token_value"))
-        vm_helper.template_vm = template_vmid
+        vm_helper = ProxmoxVM(manager=manager, vmid=template_vmid)
         vm_helper.newid = newid
         vm_helper.name_vm = vm_name
+        vm_helper.template_vm = template_vmid
         vm_helper.pool_vm = row["pool"]
+        
+        # Gestion du stockage
         storage_csv = (row.get("storage") or "").strip()
         if storage_csv:
-            vm_helper.storage_vm = storage_csv
-        else:
-            if manager.check_storage_exists("data2"):
+            
+            if manager.check_storage_exists("data2") and storage_csv == "data":
                 vm_helper.storage_vm = "data2"
-                logging.debug(f"[{i+1}/{len(rows)}] No storage in CSV, using 'data2'")
-            elif manager.check_storage_exists("data"):
-                vm_helper.storage_vm = "data"
-                logging.debug(f"[{i+1}/{len(rows)}] No storage in CSV, using 'data'")
             else:
-                logging.error(f"[{i+1}/{len(rows)}] No valid storage found (neither 'data2' nor 'data') for {vm_name}")
-                results_map[i] = False
-                rows[i]["status"] = "error"
-                continue
-        logging.debug(f"[{i+1}/{len(rows)}] Launching clone: {vm_name} (template: {template_name}, newid: {newid})")
+                vm_helper.storage_vm = storage_csv
+
+        else:
+            # On vérifie la disponibilité via le manager
+            vm_helper.storage_vm = "data2" if manager.check_storage_exists("data2") else "data"
 
         upid = vm_helper.clone_vm()
         if upid:
-            clone_tasks.append({"upid": upid, "row_index": i, "vm_name": vm_name, "manager": manager, "target_host": target_host, "vm_name_generated": vm_name, "newid_generated": newid})
-            logging.debug(f"[{i+1}/{len(rows)}] Clone launched successfully â†’ UPID: {upid}")
+            clone_tasks.append({
+                "upid": upid, 
+                "row_index": i, 
+                "manager": manager, 
+                "target_host": target_host, 
+                "vm_name": vm_name,
+                "vm_name_generated": vm_name, 
+                "newid_generated": newid
+            })
         else:
-            logging.error(f"[{i+1}/{len(rows)}] Failed to launch clone for {vm_name}")
             results_map[i] = False
             rows[i]["status"] = "error"
-    logging.debug(f"Launch phase completed: {len(clone_tasks)} clones started")
 
     # 3. Monitor all clones in parallel
     if clone_tasks:
-        logging.debug("[CLONE] Monitoring clone progress in parallel.")   
-        monitor_results = asyncio.run(_monitor_all_clones(clone_tasks))
+        logging.debug("[CLONE] Monitoring clone progress.")   
+        # MODIFICATION ICI : On passe le job_id pour incrémenter la progression
+        monitor_results = asyncio.run(_monitor_all_clones(clone_tasks, job_id))
+        
         for result in monitor_results:
+            if isinstance(result, Exception):
+                logging.error(f"Fatal error in a monitoring task : {result}")
+                continue # On passe à la ligne suivante au lieu de crasher toute l'appli
             row_index = result["row_index"]
-            success = result["success"]
-            results_map[row_index] = success
-
-            if success:
+            if result["success"]:
                 rows[row_index]["status"] = "cloned"
-                if result.get("vm_name_generated") and not rows[row_index].get("vm_name"):
-                    rows[row_index]["vm_name"] = result["vm_name_generated"]
-                    logging.debug(f"Row {row_index+1}: Updated vm_name to '{result['vm_name_generated']}'")
-                if result.get("newid_generated") and not rows[row_index].get("newid"):
-                    rows[row_index]["newid"] = str(result["newid_generated"])
-                    logging.debug(f"Row {row_index+1}: Updated newid to '{result['newid_generated']}'")
+                rows[row_index]["vm_name"] = result.get("vm_name_generated")
+                rows[row_index]["newid"] = str(result.get("newid_generated"))
+                results_map[row_index] = True
             else:
                 rows[row_index]["status"] = "error"
+                results_map[row_index] = False
 
-    else:
-        logging.debug("[CLONE] No clones to monitor (all skipped or failed to launch)")
-
-    # 4. Save CSV
+    # 4. Save CSV (Inchangé)
     header = csv_handler.read_header(delimiter)
-    success = csv_handler.write_csv(rows, header, delimiter)
-    if success:
-        logging.debug(f"CSV updated successfully: {input_csv}")
-    else:
-        logging.error(f"Failed to update CSV: {input_csv}")
+    csv_handler.write_csv(rows, header, delimiter)
 
-    # 5. Summary
-    logging.debug("Clone Operations Completed")
-    skipped = sum(1 for i, success in results_map.items() if success and rows[i].get("status") != "cloned")
-    successes = sum(1 for i, success in results_map.items() if success and rows[i].get("status") == "cloned")
-    failures = sum(1 for success in results_map.values() if not success)
-    logging.debug(f"Total VMs in CSV: {len(rows)}")
-    logging.debug(f"Skipped (already processed): {skipped}")
-    logging.debug(f"Successfully cloned: {successes}")
-    logging.debug(f"Failed: {failures}")
     return [results_map.get(i, False) for i in range(len(rows))]
 
-async def _monitor_all_clones(clone_tasks):
+async def _monitor_all_clones(clone_tasks,job_id=None):
     """
     Monitor all clone tasks in parallel.
     clone_tasks: list of dict (upid, row_index, vm_name, manager, target_host)
     return: list of results
     """
     monitoring_tasks = [
-        _monitor_clone_task(clone_info)
+        _monitor_clone_task(clone_info,job_id=job_id)
         for clone_info in clone_tasks
     ]
     results = await asyncio.gather(*monitoring_tasks, return_exceptions=True)
     return results
 
-async def _monitor_clone_task(clone_info, check_interval=5, timeout=900):
+async def _monitor_clone_task(clone_info,job_id=None,check_interval=5, timeout=900):
     """
     Monitor one clone task until completion.
     clone_info: dict with upid, row_index, vm_name, manager, target_host
@@ -409,6 +392,10 @@ async def _monitor_clone_task(clone_info, check_interval=5, timeout=900):
             return {"success": False, "row_index": row_index, "error": f"Timeout after {timeout}s"}
 
         status, exitstatus = await loop.run_in_executor(None, manager.get_task_status, upid)
+        if status == "stopped" and exitstatus == "OK":
+            if job_id and job_id in clone_jobs:
+                clone_jobs[job_id]["current"] += 1
+
         if status is None:
             logging.error(f"[{target_host}] Unable to query status for {vm_name}")
             return {"success": False, "row_index": row_index, "error": "Unable to query task status"}
@@ -424,7 +411,7 @@ async def _monitor_clone_task(clone_info, check_interval=5, timeout=900):
             logging.debug(f"[{target_host}] {vm_name} still cloning... ({int(elapsed)}s)")
         await asyncio.sleep(check_interval)
 
-def start_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def start_csv(csv_path: str, config_yaml: str, proxmox_user: str,tokens_dict: dict = None):
     """
     Start all VMs defined in the CSV file that are stopped or cloned.
     Updates the 'status' column with 'running' or 'error'.
@@ -440,7 +427,7 @@ def start_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_passwo
     logging.debug("Starting VMs from CSV")
 
     # 1. Load CSV, config and connections
-    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user, proxmox_password, use_token, token_name, token_value)
+    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user, tokens_dict=tokens_dict)
     if rows is None:
         return []
     results_map = {}
@@ -532,7 +519,7 @@ def start_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_passwo
     logging.debug(f"Failed: {failed}")
     return [results_map.get(i, False) for i in range(len(rows))]
 
-def stop_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def stop_csv(csv_path: str, config_yaml: str, proxmox_user: str,tokens_dict: dict = None):
     """
     Stop all VMs defined in the CSV file that are running.
     Updates the 'status' column with 'stopped' or 'error'.
@@ -548,7 +535,7 @@ def stop_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_passwor
     logging.debug("Stopping VMs from CSV")
 
     # 1. Load CSV, config and connections
-    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user, proxmox_password, use_token, token_name, token_value)
+    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user,tokens_dict=tokens_dict)
     if rows is None:
         return []
     results_map = {}
@@ -640,7 +627,7 @@ def stop_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_passwor
     logging.debug(f"Failed: {failed}")
     return [results_map.get(i, False) for i in range(len(rows))]
 
-def delete_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def delete_csv(csv_path: str, config_yaml: str, proxmox_user: str,tokens_dict: dict = None):
     """
     Delete all VMs defined in the CSV file.
     Updates the CSV by clearing 'status' and 'ipv4' columns on success.
@@ -656,7 +643,7 @@ def delete_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_passw
     logging.debug("Deleting VMs from CSV")
 
     # 1. Load CSV, config and connections
-    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user, proxmox_password, use_token, token_name, token_value)
+    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user,tokens_dict=tokens_dict)
     if rows is None:
         return []
     results_map = {}
@@ -752,7 +739,7 @@ def delete_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_passw
     logging.debug(f"Failed: {failed}")
     return [results_map.get(i, False) for i in range(len(rows))]
 
-def networkbridge_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def networkbridge_csv(csv_path: str, config_yaml: str, proxmox_user: str,tokens_dict: dict = None):
     """
     Update network bridge configuration for VMs defined in the CSV file.
     Reads net0 and net1 values from CSV and applies them to the corresponding VMs.
@@ -770,7 +757,7 @@ def networkbridge_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmo
     logging.debug("Updating network bridges from CSV")
 
     # 1. Load CSV, config and connections
-    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user, proxmox_password, use_token, token_name, token_value)
+    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user,tokens_dict=tokens_dict)
     if rows is None:
         return []
     results_map = {}
@@ -872,7 +859,7 @@ def networkbridge_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmo
     logging.debug("=" * 70)
     return [results_map.get(i, False) for i in range(len(rows))]
 
-def managementip_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox_password: str = None, use_token: bool = False, token_name: str = None, token_value: str = None):
+def managementip_csv(csv_path: str, config_yaml: str, proxmox_user: str,tokens_dict: dict = None):
     """
     Retrieve and store management IP addresses for running VMs defined in the CSV file.
     Only processes VMs with status 'running'. Waits up to 3 minutes per VM for QEMU agent to respond.
@@ -889,7 +876,7 @@ def managementip_csv(csv_path: str, config_yaml: str, proxmox_user: str, proxmox
     logging.debug("Retrieving management IP addresses from running VMs (sequential mode)")
 
     # 1. Load CSV, config and connections
-    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user, proxmox_password, use_token, token_name, token_value)
+    csv_handler, delimiter, rows, connections = load_csv_and_connections(csv_path, config_yaml, proxmox_user,tokens_dict=tokens_dict)
     if rows is None:
         return []
     results_map = {}

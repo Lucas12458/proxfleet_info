@@ -1,0 +1,253 @@
+/* 1. Définition des variables de couleurs (Mode Clair par défaut) */
+:root {
+  --modal-bg: #ffffff;
+  --modal-text: #333333;
+  --modal-border: #e5e7eb;
+  
+  --table-bg: #ffffff;
+  --table-header-bg: #f8f9fa;
+  --table-border: #dddddd;
+  --table-hover: #f1f5f9;
+  --table-selected: #e0f2fe;
+  
+  --comment-text: #64748b;
+}
+
+/* 2. Surcharge des variables pour le Mode Sombre (Détection automatique de l'OS) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --modal-bg: #1e1e1e;
+    --modal-text: #e0e0e0;
+    --modal-border: #333333;
+    
+    --table-bg: #252526;
+    --table-header-bg: #2d2d30;
+    --table-border: #3e3e42;
+    --table-hover: #2a2d31;
+    --table-selected: #0c3b5e;
+    
+    --comment-text: #9ca3af;
+  }
+}
+
+
+/* 4. Application des variables à la Table (Supprime la transparence) */
+
+.modal-content {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  
+  max-width: 600px;
+}
+
+/* --- Conteneur et Table --- */
+.bridge-table-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-top: 8px;
+  background-color: var(--bg-surface); 
+}
+
+.bridge-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 0.9em;
+  background-color: var(--bg-surface); 
+  color: var(--text-main);
+}
+
+.bridge-table th {
+  background-color: var(--bg-surface, #ffffff);
+  
+  background-clip: padding-box; 
+  
+  padding: 8px;
+  position: sticky;
+  top: 0;
+  
+  box-shadow: 0 2px 0 0 var(--border-color); 
+  
+  z-index: 10; 
+}
+
+.bridge-table td, .bridge-table th {
+  padding: 10px;
+  vertical-align: middle; 
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.bridge-table tr:hover {
+  background-color: var(--bg-table-stripe);
+}
+
+.bridge-table tr.selected-row {
+  background-color: var(--status-running-bg);
+}
+
+.bridge-comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.bridge-table td {
+  padding: 10px;
+}
+
+/* --- Badges de Statut de l'interface --- */
+.status-badge {
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 0.8em;
+}
+
+.status-badge.active {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.status-badge.inactive {
+  background-color: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: var(--bg-body);
+}
+
+.confirm-btn {
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  border: none;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   ACCORDÉON DES INTERFACES (EditNetworkModal)
+   ========================================= */
+
+.nic-accordion {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+}
+
+.nic-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--input-bg);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.nic-summary:hover {
+  background-color: var(--bg-table-stripe);
+}
+
+.nic-summary.expanded {
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-table-stripe);
+}
+
+.nic-summary-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nic-badge {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.85em;
+}
+
+.nic-current-target {
+  color: var(--text-main);
+  font-family: monospace;
+  font-size: 1.05em;
+}
+
+.toggle-edit-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nic-summary:hover .toggle-edit-btn {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.nic-details {
+  padding: 16px;
+  background-color: var(--bg-surface);
+}
+
+.create-input {
+  padding: 2px;
+}
+
+.form-group-tag-mac {
+  display: flex;
+  flex-direction: row;
+  gap: 30px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.form-group-tag-mac .input-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  
+}
+
+.form-group-tag-mac .input-pair label {
+  font-size: 0.85rem;        
+  font-weight: 600;          
+  color: var(--text-main);
+  letter-spacing: 0.3px;
+}

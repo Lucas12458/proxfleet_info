@@ -4,11 +4,13 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.security import APIKeyCookie
 from proxmoxer import ProxmoxAPI
 from proxfleet.proxmox_authentication import ProxmoxAuth
+from api.utils.roles import get_user_permissions
 from api.exceptions.exceptions import (
     ProxmoxUnauthorizedError, 
     ProxmoxInvalidTokenError, 
     ProxfleetError
 )
+from typing import Annotated
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from pathlib import Path
@@ -52,7 +54,6 @@ router = APIRouter(tags=["Authentification"])
 api_cookie = APIKeyCookie(name="session_cookie")
 
 
-
 async def get_effective_role_async(username: str, role: str) -> str:
     if os.path.exists(ADMINS_FILE_PATH):
         try:
@@ -87,6 +88,37 @@ def get_current_session(session_cookie: str = Depends(api_cookie)):
 
     return session
 
+
+class RequirePermission:
+    """
+    FastAPI dependency to enforce application-level RBAC (Role-Based Access Control).
+    Checks if the currently authenticated user holds a specific permission.
+    """
+    def __init__(self, permission_name: str):
+        self.permission_name = permission_name
+
+    async def __call__(self, session=Depends(get_current_session)):
+        # Note: Ajuste 'session.userid' selon la façon dont ton objet session est structuré
+        userid = session.get("userid") # ou session.username, session["userid"], etc.
+        
+        try:
+            user_perms = await get_user_permissions(userid)
+        except Exception: # On attrape l'erreur métier si le fichier est illisible
+            raise HTTPException(
+                status_code=500, 
+                detail="Internal server error while verifying user permissions."
+            )
+
+        # Si le droit n'existe pas ou est à False, on bloque l'accès (HTTP 403)
+        if not user_perms.get(self.permission_name, False):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access forbidden: Requires '{self.permission_name}' privilege."
+            )
+            
+        return session
+
+
 async def verify_admin_rights(current_session = Depends(get_current_session)):
     """
     FastAPI dependency to protect sensitive routes.
@@ -101,7 +133,7 @@ async def verify_admin_rights(current_session = Depends(get_current_session)):
     Returns:
         dict: The validated session data.
     """
-    username = current_session["user"].split("@")[0]
+    username = current_session["user"]
     effective_role = await get_effective_role_async(username,current_session["role"])
     
     if effective_role not in ["admin"]:
@@ -136,8 +168,9 @@ async def check_server_and_create_token(host: str, username: str, password: str)
 @router.post("/auth/token")
 async def login_for_access_token(data: LoginRequest):
     """
-    Main login endpoint. Aggregates tokens from multiple Proxmox hosts 
-    and creates a local unified session.
+    Main login endpoint. Aggregates tokens from multiple Proxmox hosts, 
+    verifies global roles, retrieves granular permissions, and creates 
+    a local unified session.
     """
     user = f"{data.username}@{data.realm}"
     password = data.password
@@ -154,43 +187,54 @@ async def login_for_access_token(data: LoginRequest):
 
     if not server_tokens:
         failed_hosts = ", ".join(data.hosts)
-        raise ProxmoxUnauthorizedError(host=failed_hosts, user=user, reason="Invalid credentials or all hosts unreachable")
+        raise ProxmoxUnauthorizedError(
+            host=failed_hosts, 
+            user=user, 
+            reason="Invalid credentials or all hosts unreachable"
+        )
 
-    # Determine the role (checking the whitelist)
+    # Determine the role (checking the whitelist for Super Admin)
     # Default role is assumed to be 'student' or equivalent from Proxmox
     default_role = "student" 
+    effective_role = await get_effective_role_async(user, default_role)
     
-    effective_role = await get_effective_role_async(data.username, default_role)
+    # Retrieve granular application-level permissions for this specific user
+    user_permissions = await get_user_permissions(user)
+    logging.debug(f"{user_permissions}")
     
     session_id = str(uuid.uuid4())
     SESSIONS[session_id] = {
         "user": user,
         "role": effective_role,
+        "permissions": user_permissions, # Store permissions in the server-side session
         "servers": server_tokens,
         "expires_at": time.time() + SESSION_EXPIRE_SECONDS
     }
 
-   
     response = JSONResponse({
         "message": "Successfully authenticated",
         "servers": list(server_tokens.keys()),
         "user_info": {
-            "username": data.username,
-            "role": effective_role
+            "username": user,
+            "role": effective_role,
+            "permissions": user_permissions # Send permissions to the React frontend
         }
     })
+    
     response.set_cookie(
         key="session_cookie",
         value=session_id,
         max_age=SESSION_EXPIRE_SECONDS,
         httponly=True,  
-        secure=os.getenv("ENVIRONMENT") == "production"
+        secure=os.getenv("ENV") != "development", 
+        samesite="lax"                      
     )
+    
     return response
 
 
 @router.post("/auth/logout")
-async def logout(response: Response,session: dict = Depends(get_current_session),session_cookie: str = Depends(api_cookie)):
+async def logout(response: Response,session: Annotated[dict,Depends(get_current_session)],session_cookie: Annotated[str ,Depends(api_cookie)]):
     """
     Perform a full logout by deleting remote tokens and clearing local session.
     """
